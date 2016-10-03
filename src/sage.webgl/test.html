@@ -1,0 +1,85 @@
+<html>
+	<head>
+		<style>
+			html,body{ margin:0px; padding:0px; }
+			canvas{ border:1px solid red; width:500px; height:500px;}
+		</style>
+ 		
+
+		<script src="sage.webgl.js"></script>
+		<script src="sage.webgl.CanvasGL.js"></script>
+		<script src="sage.webgl.Shader.js"></script>
+		<script>
+		
+			var cgl;
+			
+			var sqrVerts = [
+  				1.0,	1.0,	0.0,
+ 				-1.0,	1.0,	0.0,
+ 				1.0,	-1.0,	0.0,
+  				-1.0,	-1.0,	0.0
+  			];
+
+			var colors = [
+				1.0,  1.0,  1.0,  1.0,    // white
+				1.0,  0.0,  0.0,  1.0,    // red
+				0.0,  1.0,  0.0,  1.0,    // green
+				0.0,  0.0,  1.0,  1.0     // blue
+			];
+
+  			var sqrMesh,shader;
+			window.addEventListener("load",function(){
+				//Prepare WebGL
+				cgl = new sage.webgl.CanvasGL("canvas01");
+				cgl.setSize(500,500);
+
+				//Get Mesh
+				sqrMesh = new sage.webgl.Mesh(sqrVerts,cgl);
+				//sqrMesh.position.z = -6.0;
+
+				//Setup Shader
+				var colorBuf = cgl.createBuffer(colors);
+
+				shader = new sage.webgl.Shader(cgl);
+				shader.createProgram("vertShader","fragShader",false);
+				shader.addAttrib("aVertexPosition",3,sqrMesh.buffer);
+				shader.addAttrib("aVertexColor",4,colorBuf);
+				shader.addUniformMatrix4fv("uMVMatrix",cgl.getViewMatrix());
+				shader.addUniformMatrix4fv("uPMatrix",cgl.getPerspectiveMatrix());
+
+				//Render Scene.
+				cgl.clear();
+				sqrMesh.draw(cgl);
+
+				//cgl.render(sqrMesh,shader);
+			});
+		</script>
+	</head>
+<body>
+
+<script id="vertShader" type="x-shader/x-vertex">
+	attribute vec3 aVertexPosition;
+	attribute vec4 aVertexColor;
+
+	uniform mat4 uMVMatrix;
+	uniform mat4 uPMatrix;
+
+	varying lowp vec4 vColor;
+
+	void main(void) {
+		gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vColor = aVertexColor;
+	}
+</script>
+
+<script id="fragShader" type="x-shader/x-fragment">
+	varying lowp vec4 vColor;
+	void main(void) {
+		gl_FragColor = vColor; //vec4(1.0, 1.0, 1.0, 1.0);
+	}
+</script>
+
+<canvas id="canvas01"></canvas>
+
+</body>
+</html>
