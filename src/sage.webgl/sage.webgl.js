@@ -2,12 +2,14 @@ var sage = sage || {};
 sage.webgl = sage.webgl || {};
 
 /**
- * Returns an Image object that can then be painted on the screen.  
+ * Documentation sample 
  *
  * @param  VAR1
  * @param  var2
  * @return 
  */
+
+//##############################################################################
 sage.webgl.Vector3 = class{
 	constructor(x,y,z){
 		this.x = x || 0.0;
@@ -16,9 +18,11 @@ sage.webgl.Vector3 = class{
 	}
 
 	getArray(){ return [this.x,this.y,this.z]; }
-	clone(){ return new Vector3(this.x,this.y,this.z); }
+	clone(){ return new sage.webgl.Vector3(this.x,this.y,this.z); }
 }
 
+
+//##############################################################################
 sage.webgl.Mesh = class{
 	constructor(ary,cgl){
 		this.mVertices = ary;
@@ -34,9 +38,42 @@ sage.webgl.Mesh = class{
 }
 
 
+//##############################################################################
+sage.webgl.Camera = class{
+	constructor(){
+		this.mPerspectiveMat4	= new Float32Array(16);
+		this.mPosition			= new sage.webgl.Vector3();
+		this.mViewMat4			= new sage.webgl.Matrix4().setTransVec3(this.mPosition);		
+	}
+
+	setPerspective(fovy,ratio,near,far){
+		sage.webgl.Matrix4.perspective(this.mPerspectiveMat4,fovy,ratio,near,far);
+		return this;
+	}
+
+	setPosition(x,y,z){
+		this.mPosition.x = x;
+		this.mPosition.y = y;
+		this.mPosition.z = z;
+		this.mViewMat4.setTranslation(x,y,z);
+		return this;
+	}
+
+	getViewMatrix(){ return this.mViewMat4.raw; }
+	getPerspectiveMatrix(){ return this.mPerspectiveMat4; }
+}
+
+
+//##############################################################################
 sage.webgl.Matrix4 = class{
 	constructor(){ this.raw = sage.webgl.Matrix4.identity(); }
 
+	setTransVec3(vec3){
+		this.raw[12] = vec3.x;
+		this.raw[13] = vec3.y;
+		this.raw[14] = vec3.z;
+		return this;
+	}
 	setTranslation(x,y,z){
 		this.raw[12] = x;
 		this.raw[13] = y;

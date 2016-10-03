@@ -10,9 +10,8 @@
 		<script src="sage.webgl.CanvasGL.js"></script>
 		<script src="sage.webgl.Shader.js"></script>
 		<script>
-		
 			var cgl;
-			
+
 			var sqrVerts = [
   				1.0,	1.0,	0.0,
  				-1.0,	1.0,	0.0,
@@ -32,6 +31,9 @@
 				//Prepare WebGL
 				cgl = new sage.webgl.CanvasGL("canvas01");
 				cgl.setSize(500,500);
+				camera  = new sage.webgl.Camera()
+					.setPosition(0.0,0.0,-5.0)
+					.setPerspective(45,500/500,0.1,100.00);
 
 				//Get Mesh
 				sqrMesh = new sage.webgl.Mesh(sqrVerts,cgl);
@@ -44,8 +46,8 @@
 				shader.createProgram("vertShader","fragShader",false);
 				shader.addAttrib("aVertexPosition",3,sqrMesh.buffer);
 				shader.addAttrib("aVertexColor",4,colorBuf);
-				shader.addUniformMatrix4fv("uMVMatrix",cgl.getViewMatrix());
-				shader.addUniformMatrix4fv("uPMatrix",cgl.getPerspectiveMatrix());
+				shader.addUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+				shader.addUniformMatrix4fv("uPMatrix",camera.getPerspectiveMatrix());
 
 				//Render Scene.
 				cgl.clear();
