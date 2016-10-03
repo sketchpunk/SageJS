@@ -26,7 +26,7 @@
 				0.0,  0.0,  1.0,  1.0     // blue
 			];
 
-  			var sqrMesh,shader;
+  			var cgl,sqrMesh,shader,camera,colorBuf,renderLoop;
 			window.addEventListener("load",function(){
 				//Prepare WebGL
 				cgl = new sage.webgl.CanvasGL("canvas01");
@@ -40,7 +40,7 @@
 				//sqrMesh.position.z = -6.0;
 
 				//Setup Shader
-				var colorBuf = cgl.createBuffer(colors);
+				colorBuf = cgl.createBuffer(colors);
 
 				shader = new sage.webgl.Shader(cgl);
 				shader.createProgram("vertShader","fragShader",false);
@@ -50,11 +50,22 @@
 				shader.addUniformMatrix4fv("uPMatrix",camera.getPerspectiveMatrix());
 
 				//Render Scene.
-				cgl.clear();
-				sqrMesh.draw(cgl);
+				//cgl.clear();
+				//sqrMesh.draw(cgl);
+
+				renderLoop = new sage.webgl.RenderLoop(onDraw);
+				renderLoop.start();
+				//window.requestAnimationFrame(onDraw);
 
 				//cgl.render(sqrMesh,shader);
 			});
+
+			function onDraw(delta){
+				cgl.clear();
+				camera.rotateY(180 * delta);
+				shader.updateUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+				sqrMesh.draw(cgl); //Draw mesh with the active shader.
+			}
 		</script>
 	</head>
 <body>

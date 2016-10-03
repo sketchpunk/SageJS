@@ -87,6 +87,7 @@ sage.webgl.Shader = class{
 		return shader;
 	}
 
+	updateUniformMatrix4fv(uName,fData){ this.mGL.uniformMatrix4fv(this.uniforms[uName],false,fData); }
 	addUniformMatrix4fv(uName,fData){
 		var uni = this.mGL.getUniformLocation(this.program,uName);
 		if(uni < 0){ console.error("Uniform for shader not found",uName); return false; }
@@ -96,6 +97,7 @@ sage.webgl.Shader = class{
 		this.uniforms[uName] = uni; //cache the location for this constant in the shader program
 		return true;
 	}
+
 
 	prepareRender(pMatrix,mvMatrix,mesh){
 		//Define the attributes to the gpu
