@@ -71,6 +71,19 @@ sage.webgl.Camera = class{
 		//sage.webgl.Matrix4.rotate(this.mViewMat4.raw,rad,[0,1,0]);
 		return this;
 	}
+
+	rotateX(angle){
+		var rad = angle * Math.PI / 180.0;
+		this.mViewMat4.rotateX(rad);
+		//sage.webgl.Matrix4.rotate(this.mViewMat4.raw,rad,[0,1,0]);
+		return this;
+	}
+
+	rotateZ(angle){
+		var rad = angle * Math.PI / 180.0;
+		this.mViewMat4.rotateZ(rad);
+		return this;
+	}
 }
 
 //##############################################################################
@@ -122,6 +135,17 @@ sage.webgl.Matrix4 = class{
 		sage.webgl.Matrix4.rotateY(this.raw,rad);
 		return this;
 	}
+
+	rotateX(rad){
+		sage.webgl.Matrix4.rotateX(this.raw,rad);
+		return this;
+	}
+
+	rotateZ(rad){
+		sage.webgl.Matrix4.rotateZ(this.raw,rad);
+		return this;
+	}
+
 
 	static identity(){
 		var a = new Float32Array(16);
@@ -207,7 +231,55 @@ sage.webgl.Matrix4 = class{
 		out[10] = a02 * s + a22 * c;
 		out[11] = a03 * s + a23 * c;
 		return out;
-	};
+	}
+
+	static rotateX (out,rad) {
+	    var s = Math.sin(rad),
+	        c = Math.cos(rad),
+	        a10 = out[4],
+	        a11 = out[5],
+	        a12 = out[6],
+	        a13 = out[7],
+	        a20 = out[8],
+	        a21 = out[9],
+	        a22 = out[10],
+	        a23 = out[11];
+
+	    // Perform axis-specific matrix multiplication
+	    out[4] = a10 * c + a20 * s;
+	    out[5] = a11 * c + a21 * s;
+	    out[6] = a12 * c + a22 * s;
+	    out[7] = a13 * c + a23 * s;
+	    out[8] = a20 * c - a10 * s;
+	    out[9] = a21 * c - a11 * s;
+	    out[10] = a22 * c - a12 * s;
+	    out[11] = a23 * c - a13 * s;
+	    return out;
+	}
+
+	static rotateZ(out,rad){
+	    var s = Math.sin(rad),
+	        c = Math.cos(rad),
+	        a00 = out[0],
+	        a01 = out[1],
+	        a02 = out[2],
+	        a03 = out[3],
+	        a10 = out[4],
+	        a11 = out[5],
+	        a12 = out[6],
+	        a13 = out[7];
+
+	    // Perform axis-specific matrix multiplication
+	    out[0] = a00 * c + a10 * s;
+	    out[1] = a01 * c + a11 * s;
+	    out[2] = a02 * c + a12 * s;
+	    out[3] = a03 * c + a13 * s;
+	    out[4] = a10 * c - a00 * s;
+	    out[5] = a11 * c - a01 * s;
+	    out[6] = a12 * c - a02 * s;
+	    out[7] = a13 * c - a03 * s;
+	    return out;
+	}
 
 	static rotate (out, rad, axis){
 		var x = axis[0], y = axis[1], z = axis[2],

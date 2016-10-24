@@ -1,0 +1,180 @@
+<html>
+	<head>
+		<style>
+			html,body{ margin:0px; padding:0px; }
+			canvas{ border:1px solid red; width:500px; height:500px;}
+		</style>
+ 		
+
+		<script src="sage.webgl.js"></script>
+		<script src="sage.webgl.CanvasGL.js"></script>
+		<script src="sage.webgl.Shader.js"></script>
+		<script>
+			var cgl;
+
+var vertices = [
+  // Front face
+  -1.0, -1.0,  1.0,
+   1.0, -1.0,  1.0,
+   1.0,  1.0,  1.0,
+  -1.0,  1.0,  1.0,
+  
+  // Back face
+  -1.0, -1.0, -1.0,
+  -1.0,  1.0, -1.0,
+   1.0,  1.0, -1.0,
+   1.0, -1.0, -1.0,
+  
+  // Top face
+  -1.0,  1.0, -1.0,
+  -1.0,  1.0,  1.0,
+   1.0,  1.0,  1.0,
+   1.0,  1.0, -1.0,
+  
+  // Bottom face
+  -1.0, -1.0, -1.0,
+   1.0, -1.0, -1.0,
+   1.0, -1.0,  1.0,
+  -1.0, -1.0,  1.0,
+  
+  // Right face
+   1.0, -1.0, -1.0,
+   1.0,  1.0, -1.0,
+   1.0,  1.0,  1.0,
+   1.0, -1.0,  1.0,
+  
+  // Left face
+  -1.0, -1.0, -1.0,
+  -1.0, -1.0,  1.0,
+  -1.0,  1.0,  1.0,
+  -1.0,  1.0, -1.0
+];
+
+var colors = [
+  [1.0,  1.0,  1.0,  1.0],    // Front face: white
+  [1.0,  0.0,  0.0,  1.0],    // Back face: red
+  [0.0,  1.0,  0.0,  1.0],    // Top face: green
+  [0.0,  0.0,  1.0,  1.0],    // Bottom face: blue
+  [1.0,  1.0,  0.0,  1.0],    // Right face: yellow
+  [1.0,  0.0,  1.0,  1.0]     // Left face: purple
+];
+
+var generatedColors = [];
+
+for (j=0; j<6; j++) {
+  var c = colors[j];
+  
+  for (var i=0; i<4; i++) {
+    generatedColors = generatedColors.concat(c);
+  }
+}
+
+
+  var cubeVertexIndices = [
+    0,  1,  2,      0,  2,  3,    // front
+    4,  5,  6,      4,  6,  7,    // back
+    8,  9,  10,     8,  10, 11,   // top
+    12, 13, 14,     12, 14, 15,   // bottom
+    16, 17, 18,     16, 18, 19,   // right
+    20, 21, 22,     20, 22, 23    // left
+  ];
+
+  			var cgl,sqrMesh,shader,camera,colorBuf,renderLoop;
+			window.addEventListener("load",function(){
+				
+
+				//Prepare WebGL
+				cgl = new sage.webgl.CanvasGL("canvas01");
+				cgl.setSize(500,500);
+				camera  = new sage.webgl.Camera()
+					.setPosition(0.0,0.0,-5.0)
+					.setPerspective(45,500/500,0.1,100.00);
+
+				//Get Mesh
+				//sqrMesh = new sage.webgl.Mesh(sqrVerts,cgl);
+				//sqrMesh.position.z = -6.0;
+
+				//var cubeVerticesColorBuffer = cgl.createBuffer(generatedColors);
+				var meshCube = new CubeMesh(cgl,2,2,2);
+
+
+				var cubeVertBuffer = cgl.createBuffer(vertices);
+				var colorBuffer = cgl.createBuffer(generatedColors);
+				var cubeIndexBuf = cgl.createElmAryBuffer(cubeVertexIndices);
+
+				shader = new sage.webgl.Shader(cgl);
+				shader.createProgram("vertShader","fragShader",false);
+				shader.addAttrib("aVertexPosition",3,cubeVertBuffer);
+				shader.addAttrib("aVertexColor",4,colorBuffer);
+				shader.addUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+				shader.addUniformMatrix4fv("uPMatrix",camera.getPerspectiveMatrix());
+
+				//Render Scene.
+				//cgl.clear();
+				//sqrMesh.draw(cgl);
+
+				cgl.mGL.bindBuffer(cgl.mGL.ELEMENT_ARRAY_BUFFER, cubeIndexBuf);
+  
+				renderLoop = new sage.webgl.RenderLoop(onDraw);
+				renderLoop.start();
+				//window.requestAnimationFrame(onDraw);
+
+				//cgl.render(sqrMesh,shader);
+			});
+
+			function onDraw(delta){
+				delta *= 0.4;
+				cgl.clear();
+				camera.rotateZ(180 * delta).rotateX(180*delta);
+				shader.updateUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+				
+				cgl.mGL.drawElements(cgl.mGL.TRIANGLES, 36, cgl.mGL.UNSIGNED_SHORT, 0);
+				//sqrMesh.draw(cgl); //Draw mesh with the active shader.
+			}
+		</script>
+	</head>
+<body>
+
+<script id="vertShader" type="x-shader/x-vertex">
+	attribute vec3 aVertexPosition;
+	attribute vec4 aVertexColor;
+
+	uniform mat4 uMVMatrix;
+	uniform mat4 uPMatrix;
+
+	varying lowp vec4 vColor;
+
+	void main(void) {
+		gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vColor = aVertexColor;
+	}
+</script>
+
+<script id="fragShader" type="x-shader/x-fragment">
+	varying lowp vec4 vColor;
+	void main(void) {
+		gl_FragColor = vColor; //vec4(1.0, 1.0, 1.0, 1.0);
+	}
+</script>
+
+<canvas id="canvas01"></canvas>
+
+	<script>
+		class CubeMesh{
+			constructor(cgl,width,height,depth){
+				var w = width/2.0, h = height/2.0, d = depth/2.0;
+
+				//Create the front face based on the size.
+				this.v = [ -w, -h, d, w, -h, d, w, h, d, -w, h, d ];
+				this.trig = [ 0,1,2, 2,3,0 ];
+				this.colors = [1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0 ];
+
+				this.cubeVertBuffer = cgl.createBuffer(this.v);
+				this.colorBuffer = cgl.createBuffer(this.colors);
+				this.cubeIndexBuf = cgl.createElmAryBuffer(this.trig);
+			}
+		}
+	</script>
+
+</body>
+</html>

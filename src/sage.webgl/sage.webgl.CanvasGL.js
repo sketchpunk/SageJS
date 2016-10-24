@@ -40,4 +40,11 @@ sage.webgl.CanvasGL = class{
 
 		return buf;
 	}
+	createElmAryBuffer(ary){
+		var buf = this.mGL.createBuffer();
+		this.mGL.bindBuffer(this.mGL.ELEMENT_ARRAY_BUFFER, buf);
+		this.mGL.bufferData(this.mGL.ELEMENT_ARRAY_BUFFER, new Uint16Array(ary), this.mGL.STATIC_DRAW);
+
+		return buf;
+	}
 }
