@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../_shared/shared.css">
+		<style type="text/css">
+			canvas {display:block;}
+		</style>
+		<script src="../../src/sage.canvas.js"></script>
+		<script src="../../src/sage.math.js"></script>
+		<script src="../../src/sage.animationLoop.js"></script>
+	</head>
+<body>
+
+<div class="rowFlex" style="width:730px; margin:0px auto;">
+	<section style="width:400px;">
+		<div class="NodeContainer" style="display:inline-block;">
+			<header>Puggle Clone Prototype</header>
+			<canvas id="canvas01" style="height:600px; width:400px;"></canvas>
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header>Control</header>
+			<div class="ctrRow" style="margin-top:20px;">
+				<span>Character : </span>
+				<input type="radio" id="rmerge1" name="rmerge" onClick="oGame.switchBall(1);" checked><label for="rmerge1">Pug</label>
+				<input type="radio" id="rmerge2" name="rmerge" onClick="oGame.switchBall(2);"><label for="rmerge2">Mog</label>
+			</div>
+
+			<div class="ctrRow full">
+				<input type="button" id="btn1" onClick="oGame.doState(); this.blur();" value="Drop" style="display:block;">
+			</div>
+		</div>
+	<section>
+</div>
+<div class="rowFlex">
+	<section>
+		<p style="color:#a0a0a0; bottom:1px;">
+			<i style="color:lime;">Puggle Clone based on Tuber Simulator</i><br>
+			My wife got me into playing Tuber Simulator on my phone. The one thing that stood out to me was the puggle mini game. Its a classic
+			peg game you might find at boardwalks for a chance to win prizes or tickets. For some reason I was really interested in the mechanics
+			of it bouncing off the wall and pegs. So I thought it might be a fun challenge for myself to use the game dev knowledge I've gained
+			so far from unity3d and apply it on a webbased version of the puggle game. So here it is, all just for fun and its a good example for  
+			anyone who wants to implement such a thing. I built it by slowly putting together a small js framework that I'll extend over time. I'm calling it SageJS.<br><br>
+
+			- <a href="https://github.com/sketchpunk/SageJS" style="color:orange;text-decoration:none;">SageJS at Github</a><br><br>
+
+			Puggle and Graphics belongs to Tuber Simulator. Please dont sue me, pewdiepie :)
+
+			<br><br>&copy; 2016 Sketchpunk Labs;
+		</p>
+	</section>
+</div>
+
+
+<div style="display:none;">
+	<img src="peg_on.png" id="img_peg_on">
+	<img src="peg_off.png" id="img_peg_off">
+	<img src="dog.png" id="img_dog">
+	<img src="moogle.png" id="img_mog">
+</div>
+
+
+<script>
+	var oGame;
+
+	var config = {
+		gravity: 0.15,			//Rate in witch the ball falls
+		deg90Offset: 0.01,		//When hitting a peg at 90 degrees, add a random offset on the x velocity;
+		floorFriction: 0.95,	//Rate of slow down when rolling on the floor
+		minfloorSpeed: 0.05,	//At what x velocity to set at zero.
+		pegRowMax: 4,			//First row, how many pegs
+		pegCount: 18,			//How many pegs to make
+		xWallPadding: 70,		//Left/Right Padding
+		yPegSpacing: 100,		//Vertical spacing between pegs
+		scrollSpeed: 120
+	};
+
+	window.addEventListener("load",function(){
+		oGame = new Game();
+	});
+
+	//..........................................
+	class Game{
+		constructor(){
+			this.state = Game.STATE_READY;
+			this.canvas = new sage.Canvas("canvas01");
+			this.canvas.clear();
+
+			this.ballImg01 = document.getElementById("img_dog");
+			this.ballImg02 = document.getElementById("img_mog")
+
+			var peg_on = document.getElementById("img_peg_on"),
+			peg_off = document.getElementById("img_peg_off");
+
+			//var xpos = sage.math.randomRng(10,this.canvas.width -10); //(oCanvas.width/2)+5
+
+			this.ball = new Ball(this,21,40,20,this.ballImg01);
+			this.pegs = [];
+		
+			var xPad = config.xWallPadding,
+				yPad = config.yPegSpacing,
+				pegAStop = config.pegRowMax-1,	//Where the first row stops
+				pegMod = pegAStop + config.pegRowMax, //Modulus peg to create the N, N-1 two row layout.
+				spacing = (this.canvas.width-(xPad * 2)) / pegAStop, //Spacing between pegs
+				altStartX = xPad + (spacing/2); //Starting position for the second row of pegs
+
+			var x = xPad, y = yPad, p=0;
+
+			for(var i=0; i < config.pegCount; i++){
+				this.pegs.push(new Peg(x,y,10,peg_off,peg_on));
+				this.pegs[i].draw(this.canvas);
+				p = i % pegMod;
+
+				if(p == pegAStop){ y += yPad; x = altStartX; }
+				else if(p == pegMod-1){ y += yPad; x = xPad; }
+				else x += spacing;
+			}
+
+			this.lBumber = this.ball.radius;
+			this.rBumber = this.canvas.width - this.ball.radius;
+			this.scrollDir = 1;
+
+			var oThis = this;
+			this.loop = new sage.AnimationLoop(function(dt){oThis.onUpdate(dt);});
+			this.loop.start();
+		}
+
+		onUpdate(deltatime){
+			if(this.state == Game.STATE_RUNNING){
+				this.canvas.clear();
+				this.ball.update();
+
+				for(var i=0; i < this.pegs.length; i++){
+					this.pegs[i].draw(this.canvas);
+					this.ball.testPegCollision(this.pegs[i]);
+				}
+
+				this.ball.testWallCollision(this.canvas);
+				this.ball.draw(this.canvas);
+			}else if(this.state == Game.STATE_READY){
+				this.canvas.clear();
+				
+				this.ball.pos.x += config.scrollSpeed * deltatime * this.scrollDir;
+				if(this.ball.pos.x >= this.rBumber){
+					this.ball.pos.x = this.rBumber;
+					this.scrollDir = -1;
+				}else if(this.ball.pos.x <= this.lBumber){
+					this.ball.pos.x = this.lBumber;
+					this.scrollDir = 1;
+				}
+
+				this.ball.draw(this.canvas);
+				for(var i=0; i < this.pegs.length; i++) this.pegs[i].draw(this.canvas);
+
+			}else if(this.state == Game.STATE_DONE){
+				this.loop.stop();
+			}
+		}
+
+		onEnd(){ this.changeState(Game.STATE_DONE); }
+
+		reset(){
+			this.ball.reset();
+			for(var i=0; i < this.pegs.length; i++) this.pegs[i].isHit = false;
+		}
+
+		switchBall(i){
+			if(i == 1) this.ball.img = this.ballImg01;
+			else if(i==2) this.ball.img = this.ballImg02;
+		}
+
+		doState(){
+			switch(this.state){
+				case Game.STATE_READY: this.changeState(Game.STATE_RUNNING); break;
+				case Game.STATE_DONE: this.changeState(Game.STATE_READY); break;
+			}
+		}
+
+		changeState(state){
+			this.state = state;
+			switch(this.state){
+				case Game.STATE_READY:
+					this.reset();
+					document.getElementById("btn1").value = "Drop";
+					this.loop.start();
+				break;
+				case Game.STATE_RUNNING:
+					document.getElementById("btn1").value = "In Progress";
+				break;
+				case Game.STATE_DONE:
+					document.getElementById("btn1").value = "Reset";
+				break;
+			}
+		}
+	}
+
+	Game.STATE_READY = 1;
+	Game.STATE_RUNNING = 2;
+	Game.STATE_DONE = 3;
+
+	class Ball extends sage.math.Circle{
+		constructor(g,x,y,r,img){
+			super(x,y,r);
+			this.xCache = x;
+			this.yCache = y;
+
+			this.velocity = new sage.math.Vector2(0,0);
+			this.gravity = new sage.math.Vector2(0,config.gravity);
+			this.img = img;
+
+			var scale = (r*2) / img.width;
+			this.scaleSize = img.width * scale;
+
+			this.angle = 0;
+			this.rotateSpeed = 0.05;
+
+			this.game = g;
+		}
+
+		reset(){
+			this.angle = 0;
+			this.velocity.x = 0;
+			this.velocity.y = 0;
+			this.pos.x = this.xCache;
+			this.pos.y = this.yCache;
+		}
+
+		testPegCollision(peg){
+			//Test Peg Collision
+			if(sage.math.Collision.circles(this,peg)){
+				peg.hit();
+				this.hitPeg(peg);
+				return true;
+			}
+
+			return false;
+		}
+
+		testWallCollision(c){
+			var bound = sage.math.Collision.circleRectBound(this,c.width,c.height);
+			if(bound != 0){
+				if(bound & 8){
+					this.pos.y = c.height - this.radius;
+					this.velocity.y = 0;
+
+					if(Math.abs(this.velocity.x) < config.minfloorSpeed) this.velocity.x = 0;
+					else this.velocity.x *= config.floorFriction;
+
+					if(this.velocity.x == 0 && this.velocity.y == 0) this.game.onEnd();
+				}
+
+				if(bound & 1){ //Left
+					var angle = this.pos.getAngle(  new sage.math.Vector2(this.pos.x - this.radius,this.pos.y)  );
+					this.velocity.setAngle(angle);
+				}
+
+				if(bound & 4){ //Right
+					var angle = this.pos.getAngle(  new sage.math.Vector2(this.pos.x + this.radius,this.pos.y)  );
+					this.velocity.setAngle(angle);
+				}			
+			}
+		}
+
+		hitPeg(peg){
+			var angle = this.pos.getAngle(peg.pos);
+			//console.log(sage.math.radDeg(angle));
+			
+			this.velocity.setAngle(angle);	//Switch angle
+
+			if(angle < -sage.math.RAD135 && angle > -sage.math.RAD45) this.velocity.multiScalar(0.4); //4
+			else this.velocity.multiScalar(0.8); //8
+			
+			//If exactly 90 degress, then randomly tilt it to one side.
+			if(Math.abs(angle) == sage.math.RAD90) this.velocity.x += (sage.math.randomInt(1,2) == 1)? -config.deg90Offset : config.deg90Offset;
+		}
+
+		update(){
+			this.angle += this.rotateSpeed * this.velocity.x;
+			this.velocity.add(this.gravity);
+			this.pos.add(this.velocity);
+		}
+
+		draw(c){
+			c.imgRotateCenter(this.img,this.pos.x,this.pos.y,this.scaleSize,this.scaleSize,this.angle);
+		}
+	}
+
+	class Peg extends sage.math.Circle{
+		constructor(x,y,r,img_off,img_on){
+			super(x,y,r);
+			this.on_img = img_on;
+			this.off_img = img_off;
+			this.isHit = false;
+
+			var scale = (r*2) / img_on.width;
+			this.scaleSize = img_on.width * scale;
+			this.scaleSizeHalf = this.scaleSize / 2;
+		}
+
+		draw(c){
+			var x = this.pos.x - this.scaleSizeHalf,
+				y = this.pos.y - this.scaleSizeHalf;
+			c.img(((this.isHit)?this.on_img:this.off_img),x,y,this.scaleSize,this.scaleSize);
+		}
+
+		hit(){ this.isHit = true;}
+	}
+</script>
+
+</body>
+</html>

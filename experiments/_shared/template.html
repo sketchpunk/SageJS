@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="shared.css">
+	</head>
+<body>
+
+<div class="rowFlex">
+	<section>
+		<div class="NodeContainer">
+			<header>test</header>
+			test<br>
+			test
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header>test</header>
+			<canvas id="canvas2"></canvas>
+			<div class="ctrRow">
+				<span>Aptitude : </span><label>219</label><input id="apt2" class="slider" type="range" min="10" max="400" value="219" onInput="preview(this);" onChange="setAptitude(d2,this)"/>
+			</div>
+			<div class="ctrRow">
+				<span>Merge Method : </span>
+				<input type="radio" id="rmerge1" name="rmerge" onClick="setMerge(0);" checked><label for="rmerge1">Add</label>
+				<input type="radio" id="rmerge2" name="rmerge" onClick="setMerge(1);"><label for="rmerge2">Average</label>
+			</div>
+
+			<div class="ctrRow">
+				<span>Use : </span>
+				<input type="checkbox" id="use1" name="rmerge" onClick="setUseSin(this);" checked><label for="use1">Sine</label>
+				<input type="checkbox" id="use2" name="rmerge" onClick="setUsePerlin(this);" checked><label for="use2">Perlin</label>
+				<input type="checkbox" id="use3" name="rmerge" onClick="setUseRand(this);" checked><label for="use3">Random</label>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header>Math.Randomness :)</header>
+
+			test
+		</div>
+	</section>
+</div>
+
+<div class="rowFlex">
+	<section>
+		<p style="color:#a0a0a0; bottom:1px;">
+			<i style="color:lime;">Noise UI</i><br>
+			Anther UI experiment brought to you by Vor. I saw a lecture video a long while ago about using perlin noise
+			to generate terrain height maps. He demoed the concept using an interface like this where you have 3 curves
+			that you can merge together to create hills and valleys. I've done quite a bit of learning about randomness 
+			and noise that I thought it would be cool to play with that interface. I looked around for the video but 
+			couldn't find it to see if there was a link to what he used or created. Necessity is the mother of invention,
+			so what better way to learn this stuff then to build the ui for it. Used my previous UI experiement NEditorJS
+			for the base look then went to town putting it together. Side note, people asked why I didn't use ES6 in NEditor,
+			for shitz + giggles this was coded in ES6 instead of old classic js. Enjoy.<br><br>
+
+			- <a href="https://github.com/sketchpunk/NoiseUI" style="color:orange;text-decoration:none;">NoiseUI at Github</a><br>
+			- <a href="https://github.com/sketchpunk/NEditorJS" style="color:orange; text-decoration:none;">NEditorJS at Github</a><br>
+			<br><br>&copy; 2016 Sketchpunk Labs;
+		</p>
+	</section>
+</div>
+
+</body>
+</html>
