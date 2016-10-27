@@ -23,7 +23,7 @@ sage.webgl.Vector3 = class{
 
 
 //##############################################################################
-sage.webgl.Mesh = class{
+sage.webgl.Mesh = class{ //TODO, Revisit design.
 	constructor(ary,cgl){
 		this.mVertices = ary;
 		this.position = new sage.webgl.Vector3();
@@ -44,7 +44,7 @@ sage.webgl.Camera = class{
 		this.mPerspectiveMat4	= new Float32Array(16);
 		this.mPosition			= new sage.webgl.Vector3();
 		this.mViewMat4			= new sage.webgl.Matrix4().setTransVec3(this.mPosition);
-		this.mRotation			= new sage.webgl.Vector3(0,0,0);		
+		//this.mRotation			= new sage.webgl.Vector3(0,0,0);		
 	}
 
 	setPerspective(fovy,ratio,near,far){
@@ -146,6 +146,13 @@ sage.webgl.Matrix4 = class{
 		return this;
 	}
 
+	//Bring is back to identity without changing the transform values.
+	resetRotation(){	
+		for(var i=0; i < this.raw.length; i++){
+			if(i >= 12 && i <= 14) continue;
+			this.raw[i] = (i % 5 == 0)? 1 : 0;  //onlu positions 0,5,10,15 need to be 1 else 0.
+		}
+	}
 
 	static identity(){
 		var a = new Float32Array(16);

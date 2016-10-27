@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../_shared/shared.css">
+		<script src="../../src/sage.math.js"></script>
+
+		<script src="../../src/sage.webgl/sage.webgl.js"></script>
+		<script src="../../src/sage.webgl/sage.webgl.CanvasGL.js"></script>
+		<script src="../../src/sage.webgl/sage.webgl.Shader.js"></script>
+		<script src="../../src/sage.webgl/sage.webgl.CubeMesh.js"></script>
+		<script>
+  			var cgl,shader,camera,renderLoop,meshCube, rotX=0,rotY=90,rotZ=0;
+
+			window.addEventListener("load",function(){
+				//Prepare WebGL and Camera
+				cgl = new sage.webgl.CanvasGL("canvas01")
+					.setSize(500,500)
+					.setBackgroundColor(0,0,0,0);
+
+				camera  = new sage.webgl.Camera()
+					.setPosition(0.0,0.0,-5.0)
+					.setPerspective(45,500/500,0.1,100.00);
+
+				//Procedurally Generated Cube
+				meshCube = new CubeMesh(cgl,2,2,2);
+
+				//Define the shader that will render the mesh
+				shader = new sage.webgl.Shader(cgl);
+				shader.createProgram("vertShader","fragShader",false);
+				shader.addAttribAryBuffer("aVertexPosition",3,meshCube.cubeVertBuffer);
+				shader.addAttribAryBuffer("aVertexColor",4,meshCube.colorBuffer);
+				shader.addUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+				shader.addUniformMatrix4fv("uPMatrix",camera.getPerspectiveMatrix());
+  				
+  				//Animation Loop handler
+				renderLoop = new sage.webgl.RenderLoop(onDraw);
+				renderLoop.start();
+			});
+
+			function onDraw(delta){
+				//delta *= 0.4; //Slow down the rotation speed
+				cgl.clear(); //clear the scene
+
+				//Rotate the camera position then update the shader with its position.
+				camera.rotateY(rotY * delta).rotateZ(rotZ * delta).rotateX(rotX*delta);
+				shader.updateUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
+					
+				//Render the cube.
+				meshCube.draw(cgl);
+			}
+
+			//UI control stuff
+			function preview(o){ o.previousSibling.innerHTML = o.value; }
+			function reset(){
+				var o = document.getElementById("yrot");
+				o.value = rotY = 90; preview(o);
+
+				o = document.getElementById("xrot");
+				o.value = rotX = 0; preview(o);
+
+				o = document.getElementById("zrot");
+				o.value = rotZ = 0; preview(o);
+
+				o = document.getElementById("zpos");
+				o.value = -5; preview(o);
+
+				camera.setPosition(0,0,-5);
+				camera.mViewMat4.resetRotation();
+			}
+		</script>
+	</head>
+<body>
+
+<script id="vertShader" type="x-shader/x-vertex">
+	attribute vec3 aVertexPosition;
+	attribute vec4 aVertexColor;
+
+	uniform mat4 uMVMatrix;
+	uniform mat4 uPMatrix;
+
+	varying lowp vec4 vColor;
+
+	void main(void) {
+		gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+		vColor = aVertexColor;
+	}
+</script>
+
+<script id="fragShader" type="x-shader/x-fragment">
+	varying lowp vec4 vColor;
+	void main(void) {
+		gl_FragColor = vColor; //vec4(1.0, 1.0, 1.0, 1.0);
+	}
+</script>
+
+
+<div class="rowFlex" style="width:800px; margin:0px auto;">
+	<section style="width:500px;">
+		<div class="NodeContainer" style="display:inline-block;">
+			<header>WebGL Enabled Canvas</header>
+			<canvas id="canvas01"></canvas>
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header style="margin-bottom:20px;">Camera Control</header>
+			<div class="ctrRow">
+				<span>Y Rotation: </span><label>90</label><input id="yrot" class="slider" type="range" min="0" max="180" value="90" onInput="preview(this);" onChange="rotY = this.value;"/>
+			</div>
+			<div class="ctrRow">
+				<span>X Rotation: </span><label>0</label><input id="xrot" class="slider" type="range" min="0" max="180" value="0" onInput="preview(this);" onChange="rotX = this.value;"/>
+			</div>
+			<div class="ctrRow">
+				<span> Z Rotation: </span><label>0</label><input id="zrot" class="slider" type="range" min="0" max="180" value="0" onInput="preview(this);" onChange="rotZ = this.value;"/>
+			</div>
+
+			<div class="ctrRow">
+				<span>Z Position: </span><label>-5</label><input id="zpos" class="slider" type="range" min="-15" max="0" value="-5" onInput="preview(this);" onChange="camera.setPosition(0.0,0.0,this.value)"/>
+			</div>
+
+			<div class="ctrRow full">
+				<input type="button" id="btn1" onClick="reset(); this.blur();" value="Reset" style="display:block;">
+			</div>
+		</div>
+	<section>
+</div>
+
+<div class="rowFlex">
+	<section>
+		<p style="color:#a0a0a0; bottom:1px;">
+			<i style="color:lime;">WebGL Experiments : Build a viewer from scratch</i><br>
+			
+			Wanting to move into VR and AR development, I've begun studing game and graphic programming. While I use Unity3D/Unreal engines as a way
+			to learn the front end of things I'm going to use WebGL as a way to learn the backend. So the idea is to build a web based 3D modal viewer from
+			scratch. So far I have a working canvas, shaders and a procedurally generated cube with random colors for each face. For demonstration I added
+			controls for rotation and distance of the camera, so the cube itself isn't moving at all... ITS ALL AN ILLUSION :)
+			<br><br>
+
+			- <a href="https://github.com/sketchpunk/SageJS" style="color:orange;text-decoration:none;">Source on Github</a><br><br>
+
+			<br><br>&copy; 2016 Sketchpunk Labs;
+		</p>
+	</section>
+</div>
+
+</body>
+</html>
