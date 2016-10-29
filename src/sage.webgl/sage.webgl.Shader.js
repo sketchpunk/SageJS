@@ -72,14 +72,17 @@ sage.webgl.Shader = class{
 	}
 
 	getAttribLoc(name){
+		if(this.attribs[name] !== undefined) return this.attribs[name];
+
+
 		var loc = this.mGL.getAttribLocation(this.program,name);  //like an param array, get the index of the shader property
 		if(loc < 0){
 			console.error("Unable to find attribute",name);
-			return false;
+			return -1;
 		}
 
 		this.attribs[name] = loc;
-		return true;	
+		return loc;	
 	}
 
 	//Todo, Maybe merge update and add into a single function call.
@@ -150,6 +153,22 @@ sage.webgl.Shader = class{
 	}
 
 
+	attribFAryBuf(aName,dataLen,buffer){
+		if(this.program == null) return false;
+
+		var isNew = (this.attribs[aName] === undefined),
+			loc = this.getAttribLoc(aName);
+
+		if(loc < 0) return;
+		if(isNew) this.mGL.enableVertexAttribArray(loc); //Make it usable.
+
+		this.mGL.bindBuffer(cgl.mGL.ARRAY_BUFFER,buffer);
+		this.mGL.vertexAttribPointer(loc,dataLen,this.mGL.FLOAT,false,Float32Array.BYTES_PER_ELEMENT * dataLen,0);
+		this.mGL.bindBuffer(cgl.mGL.ARRAY_BUFFER,null);
+	}
+
+
+	//TODO - can be replaced by attribFAryBuf
 	addAttribAryBuffer(attrName,dataLen,buffer){
 		if(this.program == null) return false;
 
@@ -169,6 +188,8 @@ sage.webgl.Shader = class{
 
 		return true;
 	}
+
+
 
 	getDomShader(elmID){
 		var elm = document.getElementById(elmID);

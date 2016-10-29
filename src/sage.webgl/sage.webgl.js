@@ -47,7 +47,7 @@ sage.webgl.Camera = class{
 		//this.mRotation			= new sage.webgl.Vector3(0,0,0);		
 	}
 
-	setPerspective(fovy,ratio,near,far){
+	setPerspective(fovy,ratio,near,far){ //TODO, FOVY should be passed in as radians
 		sage.webgl.Matrix4.perspective(this.mPerspectiveMat4,fovy,ratio,near,far);
 		return this;
 	}
@@ -56,7 +56,7 @@ sage.webgl.Camera = class{
 		this.mPosition.x = x;
 		this.mPosition.y = y;
 		this.mPosition.z = z;
-		this.mViewMat4.setTranslation(x,y,z);
+		this.mViewMat4.translate(x,y,z);
 		return this;
 	}
 
@@ -124,7 +124,8 @@ sage.webgl.Matrix4 = class{
 		this.raw[14] = vec3.z;
 		return this;
 	}
-	setTranslation(x,y,z){
+	
+	translate(x,y,z){
 		this.raw[12] = x;
 		this.raw[13] = y;
 		this.raw[14] = z;
@@ -146,11 +147,16 @@ sage.webgl.Matrix4 = class{
 		return this;
 	}
 
+	scale(x,y,z){
+		sage.webgl.Matrix4.scale(this.raw,x,y,z);
+		return this;
+	}
+
 	//Bring is back to identity without changing the transform values.
 	resetRotation(){	
 		for(var i=0; i < this.raw.length; i++){
 			if(i >= 12 && i <= 14) continue;
-			this.raw[i] = (i % 5 == 0)? 1 : 0;  //onlu positions 0,5,10,15 need to be 1 else 0.
+			this.raw[i] = (i % 5 == 0)? 1 : 0;  //only positions 0,5,10,15 need to be 1 else 0.
 		}
 	}
 
@@ -181,6 +187,113 @@ sage.webgl.Matrix4 = class{
 	    out[14] = (2 * far * near) * nf;
 	    out[15] = 0;
 	}
+
+/*
+	MDN.orthographicMatrix = function(left, right, bottom, top, near, far) {
+  
+  // Each of the parameters represents the plane of the bounding box
+  
+  var lr = 1 / (left - right);
+  var bt = 1 / (bottom - top);
+  var nf = 1 / (near - far);
+	
+  var row4col1 = (left + right) * lr;
+  var row4col2 = (top + bottom) * bt;
+  var row4col3 = (far + near) * nf;
+  
+  return [
+     -2 * lr,        0,        0, 0,
+           0,  -2 * bt,        0, 0,
+           0,        0,   2 * nf, 0,
+    row4col1, row4col2, row4col3, 1
+  ];
+}
+*/
+
+static ortho (out, left, right, bottom, top, near, far) {
+    var lr = 1 / (left - right),
+        bt = 1 / (bottom - top),
+        nf = 1 / (near - far);
+    out[0] = -2 * lr;
+    out[1] = 0;
+    out[2] = 0;
+    out[3] = 0;
+    out[4] = 0;
+    out[5] = -2 * bt;
+    out[6] = 0;
+    out[7] = 0;
+    out[8] = 0;
+    out[9] = 0;
+    out[10] = 2 * nf;
+    out[11] = 0;
+    out[12] = (left + right) * lr;
+    out[13] = (top + bottom) * bt;
+    out[14] = (far + near) * nf;
+    out[15] = 1;
+};
+
+
+static invert (out) {
+    var a00 = out[0], a01 = out[1], a02 = out[2], a03 = out[3],
+        a10 = out[4], a11 = out[5], a12 = out[6], a13 = out[7],
+        a20 = out[8], a21 = out[9], a22 = out[10], a23 = out[11],
+        a30 = out[12], a31 = out[13], a32 = out[14], a33 = out[15],
+
+        b00 = a00 * a11 - a01 * a10,
+        b01 = a00 * a12 - a02 * a10,
+        b02 = a00 * a13 - a03 * a10,
+        b03 = a01 * a12 - a02 * a11,
+        b04 = a01 * a13 - a03 * a11,
+        b05 = a02 * a13 - a03 * a12,
+        b06 = a20 * a31 - a21 * a30,
+        b07 = a20 * a32 - a22 * a30,
+        b08 = a20 * a33 - a23 * a30,
+        b09 = a21 * a32 - a22 * a31,
+        b10 = a21 * a33 - a23 * a31,
+        b11 = a22 * a33 - a23 * a32,
+
+        // Calculate the determinant
+        det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+    if (!det) return false;
+    det = 1.0 / det;
+
+    out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+    out[1] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+    out[2] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+    out[3] = (a22 * b04 - a21 * b05 - a23 * b03) * det;
+    out[4] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+    out[5] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+    out[6] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+    out[7] = (a20 * b05 - a22 * b02 + a23 * b01) * det;
+    out[8] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+    out[9] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+    out[10] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+    out[11] = (a21 * b02 - a20 * b04 - a23 * b00) * det;
+    out[12] = (a11 * b07 - a10 * b09 - a12 * b06) * det;
+    out[13] = (a00 * b09 - a01 * b07 + a02 * b06) * det;
+    out[14] = (a31 * b01 - a30 * b03 - a32 * b00) * det;
+    out[15] = (a20 * b03 - a21 * b01 + a22 * b00) * det;
+
+    return true;
+};
+
+	//https://github.com/gregtatum/mdn-model-view-projection/blob/master/shared/matrices.js
+	static multiplyPoint(mat4, point) {
+		var x = point[0], y = point[1], z = point[2], w = point[3];
+		var c1r1 = mat4[ 0], c2r1 = mat4[ 1], c3r1 = mat4[ 2], c4r1 = mat4[ 3],
+			c1r2 = mat4[ 4], c2r2 = mat4[ 5], c3r2 = mat4[ 6], c4r2 = mat4[ 7],
+			c1r3 = mat4[ 8], c2r3 = mat4[ 9], c3r3 = mat4[10], c4r3 = mat4[11],
+			c1r4 = mat4[12], c2r4 = mat4[13], c3r4 = mat4[14], c4r4 = mat4[15];
+
+		return [
+			x*c1r1 + y*c1r2 + z*c1r3 + w*c1r4,
+			x*c2r1 + y*c2r2 + z*c2r3 + w*c2r4,
+			x*c3r1 + y*c3r2 + z*c3r3 + w*c3r4,
+			x*c4r1 + y*c4r2 + z*c4r3 + w*c4r4
+		];
+	}
+
 
 	//From glMatrix
 	static mult(out, a, b){
@@ -215,6 +328,24 @@ sage.webgl.Matrix4 = class{
 	    out[15] = b0*a03 + b1*a13 + b2*a23 + b3*a33;
 	    return out;	
 	}
+
+	static scale(out,x,y,z){
+	    out[0] *= x;
+	    out[1] *= x;
+	    out[2] *= x;
+	    out[3] *= x;
+	    out[4] *= y;
+	    out[5] *= y;
+	    out[6] *= y;
+	    out[7] *= y;
+	    out[8] *= z;
+	    out[9] *= z;
+	    out[10] *= z;
+	    out[11] *= z;
+	    return out;
+	};
+
+
 
 	static rotateY(out,rad) {
 		var s = Math.sin(rad),

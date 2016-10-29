@@ -11,6 +11,7 @@ sage.webgl.CanvasGL = class{
 		}
 		
 		this.mGL.enable(this.mGL.DEPTH_TEST);	//Shouldn't use this, use something else to add depth detection
+		this.mGL.enable(this.mGL.CULL_FACE);	//Cull back face, so only show triangles that are created clockwise
 		this.mGL.depthFunc(this.mGL.LEQUAL);	//Near things obscure far things
 		this.mGL.clearColor(0.0,0.0,0.0,1.0);	//Set clear color
 		this.clear();
