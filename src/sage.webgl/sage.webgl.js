@@ -17,6 +17,24 @@ sage.webgl.Vector3 = class{
 		this.z = z || 0.0;	
 	}
 
+	magnitude(v){
+		//Only get the magnitude of this vector
+		if(v === undefined) return Math.sqrt( this.x*this.x + this.y*this.y + this.z*this.z );
+
+		//Get magnitude based on another vector
+		var x = v.x - this.x,
+			y = v.y - this.y,
+			z = v.y - this.z;
+
+		return Math.sqrt( x*x + y*y + z*z );
+	}
+
+	set(x,y,z){
+		this.x = x;
+		this.y = y;
+		this.z = z;	
+	}
+
 	getArray(){ return [this.x,this.y,this.z]; }
 	clone(){ return new sage.webgl.Vector3(this.x,this.y,this.z); }
 }
@@ -42,8 +60,10 @@ sage.webgl.Mesh = class{ //TODO, Revisit design.
 sage.webgl.Camera = class{
 	constructor(){
 		this.mPerspectiveMat4	= new Float32Array(16);
+		this.transform			= new sage.webgl.Transform();
+		
 		this.mPosition			= new sage.webgl.Vector3();
-		this.mViewMat4			= new sage.webgl.Matrix4().setTransVec3(this.mPosition);
+		this.mViewMat4			= sage.webgl.Matrix4.identity();
 		//this.mRotation			= new sage.webgl.Vector3(0,0,0);		
 	}
 
@@ -53,16 +73,14 @@ sage.webgl.Camera = class{
 	}
 
 	setPosition(x,y,z){
-		this.mPosition.x = x;
-		this.mPosition.y = y;
-		this.mPosition.z = z;
-		this.mViewMat4.translate(x,y,z);
+		this.transform.position.set(x,y,z);
 		return this;
 	}
 
 	getPerspectiveMatrix(){ return this.mPerspectiveMat4; }
-	getViewMatrix(){
-		return this.mViewMat4.raw;
+	updateViewMatrix(){
+		sage.webgl.Matrix4.invert(this.mViewMat4,this.transform.updateMatrix());
+		return this.mViewMat4; //this.mViewMat4.raw;
 	}
 
 	rotateY(angle){
@@ -118,7 +136,7 @@ sage.webgl.RenderLoop = class{
 sage.webgl.Matrix4 = class{
 	constructor(){ this.raw = sage.webgl.Matrix4.identity(); }
 
-	setTransVec3(vec3){
+	vtranslate(vec3){
 		this.raw[12] = vec3.x;
 		this.raw[13] = vec3.y;
 		this.raw[14] = vec3.z;
@@ -147,8 +165,17 @@ sage.webgl.Matrix4 = class{
 		return this;
 	}
 
+	vscale(vec3){
+		sage.webgl.Matrix4.scale(this.raw,vec3.x,vec3.y,vec3.z);
+		return this;
+	}
 	scale(x,y,z){
 		sage.webgl.Matrix4.scale(this.raw,x,y,z);
+		return this;
+	}
+
+	invert(x,y,z){
+		sage.webgl.Matrix4.invert(this.raw);
 		return this;
 	}
 
@@ -158,6 +185,15 @@ sage.webgl.Matrix4 = class{
 			if(i >= 12 && i <= 14) continue;
 			this.raw[i] = (i % 5 == 0)? 1 : 0;  //only positions 0,5,10,15 need to be 1 else 0.
 		}
+
+		return this;
+	}
+
+	//reset data back to identity.
+	reset(){ 
+		for(var i=0; i < this.raw.length; i++) this.raw[i] = (i % 5 == 0)? 1 : 0; //only positions 0,5,10,15 need to be 1 else 0.
+
+		return this;
 	}
 
 	static identity(){
@@ -233,11 +269,13 @@ static ortho (out, left, right, bottom, top, near, far) {
 };
 
 
-static invert (out) {
-    var a00 = out[0], a01 = out[1], a02 = out[2], a03 = out[3],
-        a10 = out[4], a11 = out[5], a12 = out[6], a13 = out[7],
-        a20 = out[8], a21 = out[9], a22 = out[10], a23 = out[11],
-        a30 = out[12], a31 = out[13], a32 = out[14], a33 = out[15],
+static invert(out,mat) {
+	if(mat === undefined) mat = out; //If input isn't sent, then output is also input
+
+    var a00 = mat[0], a01 = mat[1], a02 = mat[2], a03 = mat[3],
+        a10 = mat[4], a11 = mat[5], a12 = mat[6], a13 = mat[7],
+        a20 = mat[8], a21 = mat[9], a22 = mat[10], a23 = mat[11],
+        a30 = mat[12], a31 = mat[13], a32 = mat[14], a33 = mat[15],
 
         b00 = a00 * a11 - a01 * a10,
         b01 = a00 * a12 - a02 * a10,
