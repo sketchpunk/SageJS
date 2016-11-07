@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../_shared/shared.css">
+		<style>
+			canvas{background-color: white; cursor:crosshair;}
+		</style>
+		<script src="../../src/sage.canvas.js"></script>
+	</head>
+<body>
+
+		<div class="NodeContainer" style="display:inline-block;">
+			<header>Draw Zone</header>
+			<canvas id="canvas01" style="width:500px; height:300px;"></canvas>
+		</div>
+
+
+		<div class="NodeContainer" style="display:inline-block;">
+			<header>Control</header>
+			<div class="ctrRow">
+				<span>Merge Method : </span>
+				<input type="number" onChange="dotLimit = this.value;" value="0.5" step="0.05" min="0.05" max="1">
+			</div>
+
+			
+			<div class="ctrRow full">
+				<input type="button" id="btn1" onClick="redrawCache();" value="Redraw" style="display:block;">
+			</div>
+		</div>
+
+
+<div class="rowFlex">
+	<section>
+		<p style="color:#a0a0a0; bottom:1px;">
+			<i style="color:lime;">Test</i><br>
+			Test<br><br>
+
+			- <a href="https://github.com/sketchpunk/SageJS" style="color:orange;text-decoration:none;">Test</a><br>
+			<br><br>&copy; 2016 Sketchpunk Labs;
+		</p>
+	</section>
+</div>
+
+
+<script>
+var oCanvas;
+var posCache = [];
+var isDrawing = false;
+var dotLimit = 0.5;
+var c2cMagLimit = 10;
+
+window.addEventListener("load",function(){
+	oCanvas = new sage.Canvas("canvas01")
+		.addListener("mousedown",onMouseDown)
+		.addListener("mousemove",onMouseMove)
+		.addListener("mouseup",onMouseUp)
+		.clear();
+
+	oCanvas.ctx.strokeStyle = "rgba(0,0,0,0.2)";
+
+	var v1 = vec2(5,0), v2 = vec2(5,5);
+	console.log(angle(v1,v2) * (180/Math.PI));
+});
+
+
+function onMouseDown(e){
+	var pos = oCanvas.getMouseVec2(e);
+	posCache.length = 0; //clear array
+	posCache.push(pos);
+
+	isDrawing = true;
+	oCanvas.clear();
+}
+
+function onMouseUp(e){
+	isDrawing = false;
+	processFunc();
+}
+
+function onMouseMove(e){
+	if(!isDrawing) return;
+
+	var pos = oCanvas.getMouseVec2(e);
+	oCanvas.drawLine(posCache[posCache.length-1],pos);
+
+	posCache.push(pos);
+}
+
+function vec2(x,y){ return {x:x,y:y}; }
+
+function v2Delta(a,b){ return vec2( b.x-a.x, b.y-a.y ); }
+function vec2norm(v){ var m = mag(v);  return vec2(v.x/m, v.y/m); }
+function v2DeltaNorm(a,b){
+	var x = b.x-a.x, y = b.y-a.y, //delta
+		m = Math.sqrt( x*x + y*y ); //magnitude
+	return vec2(x/m,y/m);
+}
+
+function mag(a,b){
+	var x,y;
+	if(b !== undefined && b != null){ //If two points were sent, get delta
+		x = Math.abs(b.x - a.x);
+		t = Math.abs(b.y - a.y);
+	}else{
+		x = a.x; y = a.y;
+	}
+
+	return Math.sqrt(x*x + y*y);
+}
+
+function dot(a,b){ return a.x * b.x + a.y * b.y; }
+function slope(a,b){ return (b.y-a.y) / (b.x-b.y); }
+
+function angle(a,b){
+	if(b === undefined || b == null) Math.atan(a.y/a.x);
+	return Math.acos(  ( a.x*b.x + a.y*b.y) / (mag(a) * mag(b)) )
+}
+
+function debug(){
+	var txt = "";
+	for(var i=0; i < arguments.length; i++){
+		txt += " : " + arguments[i];
+	}
+	console.log(txt);
+}
+
+function redrawCache(){
+	oCanvas.clear();
+	oCanvas.drawLine.apply(oCanvas,posCache);
+
+	processFunc();
+}
+
+function processFunc(){
+	var i=1,aryLen = posCache.length-1;
+	var step = 1;
+
+	var corner = posCache[0];
+	oCanvas.drawCircle(true,corner.x,corner.y,3);
+	
+	var v1,		//Normalized Delta from point to corner
+		v2,		//Normalized Detal from point to next point
+		dp,		//Dot Product of V1 and V2
+		mLen;	//Magnitude(length) from point to corner
+
+	while(i < aryLen){
+		if(i+step >= aryLen) break; //If last point break.
+		
+		//Test min distance between corners, helps clean up very close point that are next to eachother.
+		mLen = mag(corner,posCache[i]);
+		if(mLen <= c2cMagLimit) continue;
+
+		//Instead of using angle, use absolute normalized dot product
+		//The closer to 1 the angle is closer to either 0 or 180
+		//The closer to 0 the angle is closer to 90.
+		v1 = v2DeltaNorm(posCache[i],corner)
+		v2 = v2DeltaNorm(posCache[i],posCache[i+step]);
+		dp = Math.abs(dot(v1,v2));
+
+		//if the angle of change is below the threshold, then we found a new corner.
+		if(dp <= dotLimit){
+			corner = posCache[i];
+			oCanvas.drawCircle(true,corner.x,corner.y,3);
+			oCanvas.drawText(corner.x+10,corner.y+10,i);
+		}
+
+		i+=step;
+	}
+}
+
+
+function processResults(){
+	console.log(posCache);
+
+	var corner = posCache[0]; 
+
+	oCanvas.drawCircle(true,corner.x,corner.y,3);
+	skip = 0;
+
+	var xavg = 0; yavg = 0, avgc = 0;
+
+	for(var i=1; i < posCache.length-1; i++){
+		skip++;
+		//if(skip < 2) continue;
+
+		var da = v2Delta(posCache[i],corner),
+			db = v2Delta(posCache[i],posCache[i+1]);
+		//debug(da.x,da.y,db.x,db.y,angle(da,db)*(180/Math.PI));
+
+		var deltaBack = v2DeltaNorm(posCache[i],corner),
+			deltaFront = v2DeltaNorm(posCache[i],posCache[i+1]),
+			d = Math.abs(dot(deltaBack,deltaFront));
+
+		xavg += posCache[i].x;
+		yavg += posCache[i].y;
+		avgc++;
+
+		//var s = slope(posCache[i],corner);
+
+		//var ang = angle(deltaBack,deltaFront);
+
+		//debug(i,d,s,xavg/avgc,yavg/avgc); //ang * (180/Math.PI)
+		debug(i,posCache[i].x,posCache[i].y,d); //ang * (180/Math.PI)
+
+		if(d <= dotLimit){
+			console.log("new corner");
+			//console.log(angle(corner,posCache[i]));
+			//console.log(angle(corner,posCache[i]) * (180/Math.PI));
+			var cmag = mag(v2Delta(corner,posCache[i]) );
+			console.log(cmag);
+			if(cmag <= c2cMagLimit) continue;
+
+
+			corner = posCache[i];
+			oCanvas.drawCircle(true,corner.x,corner.y,3);
+			oCanvas.drawText(corner.x+10,corner.y+10,i);
+			skip = 0;
+			xavg = yavg = avgc = 0;
+			
+		}
+
+	}
+
+	/*
+	Loop from position 1 to second to last point
+		get next point
+		get delta between the last corner and the prev point
+		if magnitude(delta) > 20 AND at least 2 points scanned.
+			newDelta delta of prev point and next point
+			if angle of newDelta and delta is greater then 45% Math.PI/4
+				savee next point as corner
+				update last corner
+				reset n point to 0
+
+	*/
+}
+
+</script>
+
+</body>
+</html>

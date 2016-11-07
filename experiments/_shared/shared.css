@@ -11,6 +11,14 @@ Responsive Design, So the node boxes can fold into one column on smaller screens
     .rowFlex { flex-direction:row; }
 }
 
+.btnVertList{ padding:10px; }
+.btnVertList > * { display:block; margin-top:10px; width:100%;}
+.btnVertList > *:first-child { margin-top:0px; }
+
+
+.ctrList{ list-style:none; margin:10px 15px; padding:0px; }
+.ctrList > li{margin-top:10px;}
+.ctrList > li:first-child{margin-top:0px;}
 
 /*---------------------------------------
 Use the node container from NEditorJS, why not its a great design :) */
@@ -20,24 +28,37 @@ Use the node container from NEditorJS, why not its a great design :) */
 	text-align:center; padding:4px 12px;
 	-webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;           
 }
+.NodeContainer > footer{ display:block; background-color:rgba(0,0,0,0.35); color:#c0c0c0; border-radius:0px 0px 5px 5px; border:1px solid #505050; border-width:1px 0px 0px 0px;
+	padding:4px 12px;         
+}
 
 
 /*---------------------------------------
 Quick styling for the control row that has the sliders, radios and checkboxes. */
 .ctrRow{ padding:0px 10px 20px 10px;}
 .ctrRow > span{color:white; opacity:0.5; }
-.ctrRow > label{color:white; font-weight:bold; opacity:0.9; }
+.ctrRow > label{color:white; opacity:0.9; }
 .ctrRow.full > * {display:block; width:100%;}
 
+
+input[type=text] { border:1px solid rgba(135, 213, 48, 0.7); background-color:rgba(0,0,0,0.4); color:green; text-align:center; padding:2px 4px; outline: none; font-size:1.1em;}
+input[type=text]:focus { border:1px solid rgba(135, 213, 48, 1); background-color:rgba(30,30,30,0.4);  color:lime;  }
+
+
+input[type=number] { border:1px solid rgba(135, 213, 48, 0.7); background-color:rgba(0,0,0,0.4); color:green; text-align:center; padding:2px 4px; outline: none; font-size:1.1em;}
+input[type=number]:focus { border:1px solid rgba(135, 213, 48, 1); background-color:rgba(30,30,30,0.4);  color:lime;  }
 
 /*---------------------------------------
 Make the radio buttons and checkboxes match the rest of this fine lookin style.*/
 input[type=radio],input[type=checkbox] { display:none; }
 input[type=radio] + label:before,
-	input[type=checkbox] + label:before { content: ""; display: inline-block;  vertical-align:baseline;
-	width: 15px; height: 15px; margin-right: 8px; border-radius: 8px; background-color: #505050; margin-left:8px; cursor: pointer;}
+input[type=checkbox] + label:before { content: ""; display: inline-block;  vertical-align:baseline;
+	width: 14px; height: 14px; margin-right: 8px; border-radius: 8px; background-color: #505050;  cursor: pointer;}
 input[type=radio]:checked + label:before,
 	input[type=checkbox]:checked + label:before{ content: ""; background-color: #86d530; }
+
+input[type=radio] + label,			input[type=checkbox] + label{cursor:pointer; vertical-align:baseline; color:white; }
+input[type=radio] + label:hover,	input[type=checkbox] + label:hover{color:#c0c0c0;}
 
 
 /*---------------------------------------
