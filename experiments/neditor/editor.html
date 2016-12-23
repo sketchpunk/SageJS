@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" href="../_shared/font-awesome-4.7.0/css/font-awesome.min.css">
+		<style>
+			*{font-family: arial; }
+			html,body{margin:0px; padding:0px; width:100%; height:100%;}
+			body{background:url(../_shared/bg_grid.png);}
+
+			*{font-family: 'Segoe UI', 'Segoe WP', 'Segoe UI Regular', 'Helvetica Neue', Helvetica, Tahoma, 'Arial Unicode MS', sans-serif; }
+
+			.bgDarkRed{ background-color:#532734; }
+			.bgGreen{ background-color:#4f7526; }
+			.bgBlue{ background-color:#297286; }
+			.bgOrange{ background-color:#be753e; }
+			.bgGreen2{ background-color:#36ac7a; }
+			.bgPurple{ background-color:#70429a; }
+			.bgRed{ background-color:#923930; }
+			.bgRed2{ background-color:#663141; }
+
+
+			.NodeFlow{ position:absolute; display:inline-block; border-radius:5px; box-shadow: 0px 5px 10px #000000;
+				-webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;   
+				color:white; padding:4px 12px; cursor:pointer;}
+
+			.NodeFlow > i{position:absolute; width:14px; height:14px; cursor:pointer; top:7px; font: normal normal normal 15px/1 FontAwesome; color:silver; text-align:center; }
+			.NodeFlow > i.flowIn{ left:-6px; }
+			.NodeFlow > i.flowOut{ right:-6px; }
+			.NodeFlow > i:hover{ color:white; }
+			.NodeFlow > i.Active{ color:#86d530; }
+
+			/*---------------------------------------*/
+			.NodeBox{ position:absolute; background-color:rgba(63,63,63,.7); display:inline-block;
+			border-radius:5px; box-shadow: 0px 5px 10px #000000;}
+
+			.NodeBox > header{ display:block; color:white; cursor:pointer;
+				padding:4px 12px; border-radius:5px 5px 0px 0px; position:relative;
+				-webkit-touch-callout: none; -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;           
+			}
+
+			.NodeBox > header > i{position:absolute; width:14px; height:14px; cursor:pointer; top:7px; font: normal normal normal 15px/1 FontAwesome; color:silver; text-align:center; }
+			.NodeBox > header > i:nth-of-type(1){ left:-7px; }
+			.NodeBox > header > i:nth-of-type(2){ right:-6px; }
+			.NodeBox > header > i:hover{ color:white; }
+			.NodeBox > header > i.Active{ color:#86d530; }
+
+			.NodeBox > footer {display:block; background-color:rgba(0,0,0,0.35); color:#c0c0c0; border-radius:0px 0px 5px 5px; border:1px solid #505050; border-width:1px 0px 0px 0px; padding:4px 12px; }
+
+			.NodeBox > ul { margin:0px; padding:0px; list-style:none; }
+			.NodeBox > ul > li { position:relative; margin-top:8px; margin-bottom:8px; display:flex; }
+			.NodeBox > ul > li > span{display:inline-block; color:white; padding:0px 10px; color:silver;}
+
+			.NodeBox > ul > li > i{ position:absolute; width:0.6em; height:0.6em; background-color:gray; border-radius:1em; cursor:pointer; }
+			.NodeBox > ul > li > i:hover{ background-color:red; }
+
+			.NodeBox > ul > li > input[type=text]{flex:1; width:0px; margin-right:10px; padding:0px 5px; color:silver; font-size:16px;
+				border:1px solid green; background-color:transparent;  background-color:rgba(0,0,0,0.2); }
+			.NodeBox > ul > li > input[type=text]:focus{border-color:lime; outline: none; color:white; }
+
+			.NodeBox > ul > li.Input > i { left:-0.3em; top:0.4em; }
+			.NodeBox > ul > li.Output > span { flex:1; text-align:right;}
+			.NodeBox > ul > li.Output > i { right:-0.25em; top:0.4em; }
+			.NodeBox > ul > li.Active > i { background-color:yellow;}
+
+
+			/*---------------------------------------*/
+			.dashPath_Green{ stroke-dasharray:20,5,5,5,5,5; stroke-width:2; stroke:#86d530;}
+			.dashPath_Gray{ stroke-dasharray:20,5,5,5,5,5; stroke-width:2; stroke:#999999;}
+			.dashPath_Yellow{ stroke-dasharray:20,5,5,5,5,5; stroke-width:2; stroke:yellow;}
+
+			.animeSVGDash{ animation: moveDashOffset 5s linear infinite; }
+			@keyframes moveDashOffset{
+				from{ stroke-dashoffset: 500; }
+				to{ stroke-dashoffset: 0; }
+			}
+
+		</style>
+		<script src="../../src/sage.js"></script>
+		<script src="../../src/sage.ui.js"></script>
+		<script src="../../src/sage.svg.js"></script>
+	</head>
+<body>
+
+<svg id="svgcanvas" style="width:100%; height:100%;"></svg>
+<!--
+<i class="fa fa-plus-circle" aria-hidden="true"></i>
+
+<div class="NodeBox" style="width:200px; top:300px; left:800px;">
+	<header class="bgBlue"><i>&#xf05a;</i><span>Title</span><i>&#xf055;</i></header>
+	<ul>
+		<li class="Input"><i></i><span>Input</span></li>
+		<li class="test"><span>My Input</span><input type="text" value="test"></li>
+	</ul>
+	<footer>x</footer>
+</div>
+-->
+	<script>
+	/*
+	Have a way to connect One Process to another. This is the title bar connecting pinz.
+	Then need Available Output Data from node, Plus possible input data.
+
+	Connector
+	- From Object
+	- Type : Data, Flow
+	- To Object
+
+
+	Connectors can live in the global scale
+
+	Node Box can have Items
+	Input
+	Output
+	Static Data
+
+
+	*/
+
+		var ND_MSCompiler = { uuid:"",name:"MS Compiler",color:"Green",xpos:50,ypos:100,width:300,
+					items:[
+						{uuid:"",name:"BuildFile",itemType:"StringItem",value:""},
+						{uuid:"",name:"BuildPath",itemType:"OConnectorItem"},
+						{uuid:"",name:"FakeInput",itemType:"IConnectorItem"}
+					]
+				};
+
+		var ND_Signer = { uuid:"",name:"Signer",color:"Orange",xpos:500,ypos:50,width:250,
+					items:[
+						{uuid:"",name:"Executable",itemType:"StringItem",value:""},
+						{uuid:"",name:"Root Path",itemType:"IConnectorItem"}
+					]
+				};
+
+
+		window.addEventListener("load",function(){
+			EditorManager.init();
+			
+			//TODO, Items that are cloned are having the same iD, must mean its not cloning correctly.
+
+			EditorManager.loadSavedState(savedNodes,savedConn);
+
+			var start = new NodeFlow("ProcessStart","Red",2).setPosition(50,50);
+			start.flowTo(EditorManager.getNodeByID('772fcd87-0dd8-4882-a43a-101458377b4a')).setAnimateState(true);
+
+
+			/*
+			EditorManager.addNode(ND_MSCompiler);
+
+			var def = Object.assign({},ND_Signer); def.items[0].value = "main.exe";
+			EditorManager.addNode(def);
+
+			def = Object.assign({},ND_Signer); def.items[0].value = "updater.exe";
+			def.xpos = 40;
+			def.ypos = 400;
+			EditorManager.addNode(def);//.setPosition(40,400);
+			*/
+
+
+			//var box = new NodeBox(ND_MSCompiler);
+			//var box2 = new NodeBox(ND_Signer);
+			//var box3 = new NodeBox(ND_Signer).setPosition(40,400);
+
+			//console.log(Object.assign(ND_Signer));
+
+			//ND_MSCompiler
+
+
+			/*
+			var box = new NodeBox().setWidth(300).setPosition(100,100);
+			//box.addInputItem("Input").addStringInput("Path","woot").addOutputItem("output");
+			box.addItem(new OConnectorItem("Output"),new IConnectorItem("Input"),new StringItem("Str","test"));
+
+			box.serialize();
+
+			var box2 = new NodeBox("Green").setWidth(300).setPosition(500,100);
+			//box.addInputItem("Input").addStringInput("Path","woot").addOutputItem("output");
+			box2.addItem(new OConnectorItem("Output"),new IConnectorItem("Input"));
+
+
+			
+			var box3 = new NodeFlow("ProcessEnd","Red",1).setPosition(500,50);
+			*/
+		});
+
+
+		//--------------------------------------------------------------------------
+		class Connector{
+			constructor(type,uuid,iconn,oconn,appyPos){
+				this.uuid = uuid || sage.uuid();
+				this.IConn = iconn;
+				this.OConn = oconn;
+				this.connType = type;
+				this.svgPath = EditorManager.svg.createPath();
+
+				this.OConnPos = null;
+				this.IConnPos = null;
+
+				if(iconn) iconn.connect(this);
+				if(oconn) oconn.connect(this);
+
+				this.updateState();
+				this.updatePosition(appyPos);
+			}
+
+			serialize(){
+				var def = {
+					uuid:this.uuid,
+					inputID:this.IConn.getID(),
+					nodeInputID:this.IConn.node.getID(),
+					outputID:this.OConn.getID(),
+					nodeOutputID:this.OConn.node.getID(),
+					type:this.connType
+				}
+				return JSON.stringify(def);
+			}
+
+			setAnimateState(state){
+				if(state) this.svgPath.classList.add("animeSVGDash");
+				else this.svgPath.classList.remove("animeSVGDash");
+			}
+
+			updateState(){
+				var c1,c2,
+					activeStyle = (this.connType == Connector.TYPE_FLOW)? "dashPath_Green" : "dashPath_Yellow";
+
+				if(this.IConn && this.OConn){
+					c1 = "dashPath_Gray";	c2 = activeStyle;
+				}else{
+					c1 = activeStyle;		c2 = "dashPath_Gray";
+				}
+
+				this.svgPath.classList.remove(c1);
+				this.svgPath.classList.add(c2);
+			}
+
+			updatePosition(doCurve){
+				if(this.OConn) this.OConnPos = this.OConn.getPos();
+				if(this.IConn) this.IConnPos = this.IConn.getPos();
+				if(doCurve == true) this.setPos(this.OConnPos.x,this.OConnPos.y,this.IConnPos.x,this.IConnPos.y);
+			}
+
+			disconnectInput(){ 
+				if(this.IConn){
+					this.IConn.disconnect(this);
+					this.IConn = null;
+					this.updateState();
+				}
+			}
+
+			dispose(){
+				EditorManager.svg.remove(this.svgPath);
+				this.svgPath = null;
+				if(this.OConn){ this.OConn.disconnect(this); this.OConn = null; }
+				if(this.IConn){ this.IConn.disconnect(this); this.IConn = null; }
+			}
+
+			//set(i,o){ this.IConn = i; this.OConn = o; }
+			setInput(c){
+				this.IConn = c;
+				c.connect(this);
+				this.updatePosition(true);
+				this.updateState();
+			}
+			//setOut(c){ this.OConn = c; }
+
+			setEndPos(x,y){
+				EditorManager.svg.setQCurveScaledXPos(this.svgPath,this.OConnPos.x,this.OConnPos.y,x,y,1.5); return this;
+			}
+
+			setPos(x1,y1,x2,y2){
+				EditorManager.svg.setQCurveScaledXPos(this.svgPath,x1,y1,x2,y2,1.5);
+				return this;
+			}
+		}
+
+		Connector.TYPE_DATA = 1;
+		Connector.TYPE_FLOW = 2;
+
+		//--------------------------------------------------------------------------
+		//Input connectors can only connect once.
+		var NodeItems = [];
+
+		NodeItems["IConnectorItem"] = class {
+			constructor(def,type){
+				this.def = def;
+				this.node = null;
+				this.conn = null;
+				this.connType = type || Connector.TYPE_DATA;
+				this.ui = NodeItems["IConnectorItem"].buildUI(this);
+			}
+
+			getID(){ return this.def.uuid; }
+
+			updateState(){
+				var o = (this.ui.root)? this.ui.root : this.ui.conn;
+
+				if(this.conn != null) o.classList.add("Active");
+				else o.classList.remove("Active");
+			}
+
+			connect(c){
+				if(this.conn != null) this.conn.dispose(); //Get rid of current existing connection.
+				this.conn = c;
+				this.updateState();
+			}
+
+			disconnect(conn){
+				if(this.conn === conn){
+					this.conn = null;
+					this.updateState();
+				}
+			}
+
+			onMove(){
+				if(this.conn) this.conn.updatePosition(true);
+			}
+
+			getPos(){
+				var rect = this.ui.conn.getBoundingClientRect();
+				return {x:rect.left + (rect.width/2),y:rect.top + (rect.height/2)};
+			}
+
+			static buildUI(oThis){
+				var ui,evt;
+				//depending in type, the ui will be different
+				switch(oThis.connType){
+					case Connector.TYPE_DATA:
+						ui = { root:sage.ui.newElm("li",null,"Input",null) };
+						evt = ui.conn = sage.ui.newElm("i",null,null,ui.root);
+						ui.label = sage.ui.newElm("span",oThis.def.name,null,ui.root);
+					break;
+
+					case Connector.TYPE_FLOW:
+						ui = { conn:sage.ui.newElm("i","&#xf056;",null,null) };
+						evt = ui.conn;
+					break;
+				}
+
+				//If Currently dragging a connection, apply conn. If no dragging then start connection move.
+				evt.addEventListener("click",function(e){
+					e.stopPropagation(); e.preventDefault();
+
+					switch(EditorManager.dragMode){
+						case EditorManager.DRAG_PATH: //Path Drag
+							if(oThis.connType != EditorManager.dragItem.connType){ console.log("Connection type does not match input type"); return; }
+							if(oThis.node === EditorManager.dragItem.OConn.node){ console.log("Can not connect a node's output to one of its inputs."); return; }
+
+							EditorManager.dragItem.setInput(oThis);
+							EditorManager.endConnDrag();
+							break;
+						case 0: //Not in drag mode
+							if(oThis.conn != null){
+								EditorManager.beginConnDrag(oThis.conn);
+								oThis.conn.disconnectInput();
+							}
+							break;
+					}
+				});
+
+
+				//Right click on input will delete the connection entirely
+				evt.addEventListener("contextmenu",function(e){
+					e.stopPropagation(); e.preventDefault();
+					if(EditorManager.dragMode == 0 && oThis.conn != null) oThis.conn.dispose();
+				});
+
+				return ui;
+			}
+		}
+
+		//Output Connector can have multiple connectors.
+		NodeItems["OConnectorItem"] = class{
+			constructor(def,type){
+				this.node = null;
+				this.def = def;
+				
+				this.conn = [];
+				this.connType = type || Connector.TYPE_DATA;
+				this.ui = NodeItems["OConnectorItem"].buildUI(this);
+			}
+
+			getID(){ return this.def.uuid; }
+
+			updateState(){
+				var o = (this.ui.root)? this.ui.root : this.ui.conn;
+
+				if(this.conn.length > 0) o.classList.add("Active");
+				else o.classList.remove("Active");
+			}
+
+			serializeConnections(){
+				for(var i=0; i < this.conn.length; i++){
+					console.log(this.conn[i].serialize());
+				}
+			}
+
+			connect(c){
+				this.conn.push(c);
+				this.updateState();
+			}
+
+			disconnect(conn){
+				var i = this.conn.indexOf(conn);
+				if(i >= 0){
+					this.conn.splice(i,1);
+					this.updateState();
+				}
+			}
+
+			getPos(){
+				var rect = this.ui.conn.getBoundingClientRect();
+				return {x:rect.left + (rect.width/2),y:rect.top + (rect.height/2)};
+			}
+
+			onMove(){
+				for(var i=0; i < this.conn.length; i++) this.conn[i].updatePosition(true);
+			}
+
+			static buildUI(oThis){
+				var ui,evt;
+
+				switch(oThis.connType){
+					case Connector.TYPE_DATA:
+						ui = { root:sage.ui.newElm("li",null,"Output",null) };
+						evt = ui.conn = sage.ui.newElm("i",null,null,ui.root);
+						ui.label = sage.ui.newElm("span",oThis.def.name,null,ui.root);
+					break;
+
+					case Connector.TYPE_FLOW:
+						ui = { conn:sage.ui.newElm("i","&#xf055;",null,null) };
+						evt = ui.conn;
+					break;
+				}
+
+				evt.addEventListener("click",function(e){
+					e.stopPropagation(); e.preventDefault();
+					if(EditorManager.dragMode == 0){
+						var conn = new Connector(oThis.connType,null,null,oThis).setEndPos(e.pageX,e.pageY);
+						EditorManager.beginConnDrag(conn);
+					}
+				});
+
+				return ui;
+			}
+		}
+
+		
+		NodeItems["StringItem"] = class{
+			constructor(def){
+				this.def = def;
+				this.node = null;
+
+				//this.uuid = uuid || sage.uuid();
+				//this.name = name;
+				//this.itemType = "StringItem";
+				this.ui = NodeItems["StringItem"].buildUI(this);
+			}
+
+			getID(){ return this.def.uuid; }
+
+			serialize(){
+				return {uuid:this.uuid, name:this.name, itemType:this.itemType, value: this.ui.input.value };
+			}
+
+			static buildUI(oThis){
+				var ui = { root:sage.ui.newElm("li") };
+				ui.label = sage.ui.newElm("span",oThis.def.name,null,ui.root);
+				ui.input = sage.ui.newInput("text",oThis.def.name,oThis.def.value,ui.root);
+				return ui;
+			}
+		}
+
+		//--------------------------------------------------------------------------
+		class NodeBox{
+			constructor(nodeDef){
+				//Save and update definition
+				this.def = nodeDef;
+				if(this.def.uuid == "") this.def.uuid = sage.uuid();
+				
+				//Build UI and Object
+				this.ui = NodeBox.buildUI(this);
+				this.ui.header.classList.add("bg"+(this.def.color || "Blue"));
+				this.items = [];
+
+				//Start setting up the object
+				this.setPosition(this.def.xpos,this.def.ypos);
+				if(this.def.width > 0) this.setWidth(this.def.width);
+				
+				//Build the node items required by this definition.
+				if(this.def.items.length > 0) NodeBox.buildFromDef(this);
+			}
+
+			getID(){ return this.def.uuid; }
+
+			serialize(){
+				this.ui.flowOut.serializeConnections();
+
+				for(var i=0; i < this.items.length; i++){
+					if(this.items[i].def.itemType == "OConnectorItem") console.log(this.items[i].serializeConnections());
+				}
+
+				return JSON.stringify(this.def);
+			}
+
+			addItem(){
+				for(var i=0; i < arguments.length; i++){
+					this.ui.items.appendChild(arguments[i].ui.root);
+					arguments[i].node = this;
+					this.items.push(arguments[i]);
+				}
+				return this;
+			}
+
+			setWidth(w){
+				this.ui.root.style.width = w+"px";
+				this.def.width = w;
+				return this;
+			}
+			
+			setPosition(x,y){
+				this.ui.root.style.left = x + "px";
+				this.ui.root.style.top = y + "px";
+				this.def.xpos = x;
+				this.def.ypos = y;
+				
+				//Update Output Items
+				for(var i=0; i < this.items.length; i++){
+					if(this.items[i].def.itemType == "OConnectorItem" || 
+					   this.items[i].def.itemType == "IConnectorItem") this.items[i].onMove();
+				}
+
+				//Update Flow Connections
+				this.ui.flowOut.onMove();
+				this.ui.flowIn.onMove();
+
+				return this;
+			}
+
+			getPosition(){
+				var rect = this.ui.root.getBoundingClientRect();
+				return {x:rect.left,y:rect.top};
+			}
+
+			flowTo(node,uuid){
+
+				var oconn = this.ui.flowOut,
+					iconn = node.ui.flowIn,
+					conn = new Connector(Connector.TYPE_FLOW,uuid,iconn,oconn,true);
+			}
+
+			outputTo(outID,iconn,uuid){
+				console.log("outputTo");
+				var oconn = this.getItemByID(outID),
+					conn = new Connector(Connector.TYPE_DATA,uuid,iconn,oconn,true);
+
+			}
+
+			getItemByID(id){
+				for(var i=0; i < this.items.length; i++){
+					if(this.items[i].def.uuid == id) return this.items[i];
+				}
+				return null;
+			}
+
+			//.....................................................
+			//UI Building functions
+			static buildUI(oThis){
+				var ui = {root:sage.ui.newElm("div",null,"NodeBox",document.body)};
+				
+				//Build Header
+				ui.header = sage.ui.newElm("header",null,null,ui.root);
+
+				ui.flowIn = new NodeItems["IConnectorItem"]({uuid:null,name:"FlowIn",itemType:"IConnectorItem"},Connector.TYPE_FLOW);
+				ui.flowIn.node = oThis;
+				ui.header.appendChild(ui.flowIn.ui.conn);
+
+				ui.title = sage.ui.newElm("span",oThis.def.name,null,ui.header);
+
+				ui.flowOut = new NodeItems["OConnectorItem"]({uuid:null,name:"FlowOut",itemType:"OConnectorItem"},Connector.TYPE_FLOW);
+				ui.flowOut.node = oThis;
+				ui.header.appendChild(ui.flowOut.ui.conn);
+
+				//Build List
+				ui.items = sage.ui.newElm("ul",null,null,ui.root);
+				
+				//Add Events
+				ui.header.addEventListener("mousedown",function(e){
+					e.stopPropagation(); e.preventDefault();
+					if(e.target.tagName != "I") EditorManager.beginNodeDrag(oThis,e.pageX,e.pageY);
+				});
+				//Footer
+				//ui.footer = sage.ui.newElm("footer","",null,ui.root);
+
+				return ui;
+			}
+
+			static buildFromDef(oThis){
+				var itms = oThis.def.items;
+				for(var i=0; i < itms.length; i++){
+					if(itms[i].uuid == "") itms[i].uuid = sage.uuid();
+					oThis.addItem( new NodeItems[itms[i].itemType](itms[i]) );
+				}
+			}
+		}
+
+		class NodeFlow{
+			constructor(title,color,flow,uuid){
+				this.uuid = uuid || sage.uuid();
+				this.ui = NodeFlow.buildUI(this,title,flow);
+				this.ui.root.classList.add("bg"+(color || "Blue"));
+			}
+
+			setWidth(w){ this.ui.root.style.width = w+"px"; return this; }
+			setPosition(x,y){
+				this.ui.root.style.left = x + "px";
+				this.ui.root.style.top = y + "px";
+				
+				//Update Flow Connections
+				if(this.ui.flowOut) this.ui.flowOut.onMove();
+				if(this.ui.flowIn)	this.ui.flowIn.onMove();
+
+				return this;
+			}
+
+			getPosition(){
+				var rect = this.ui.root.getBoundingClientRect();
+				return {x:rect.left,y:rect.top};
+			}
+
+			flowTo(node,uuid){
+				var oconn = this.ui.flowOut,
+					iconn = node.ui.flowIn,
+					conn = new Connector(Connector.TYPE_FLOW,uuid,iconn,oconn,true);
+
+				return conn;
+			}
+
+			//.....................................................
+			//UI Building functions
+			static buildUI(oThis,title,flow){
+				var ui = {root:sage.ui.newElm("div",null,"NodeFlow",document.body)};
+
+				//Build Header
+				if((flow & 1) == 1){
+					ui.flowIn = new NodeItems["IConnectorItem"](null,Connector.TYPE_FLOW);
+					ui.root.appendChild(ui.flowIn.ui.conn);
+					ui.flowIn.ui.conn.classList.add("flowIn");
+				}
+
+				ui.title = sage.ui.newElm("span",title,null,ui.root);
+
+				if((flow & 2) == 2){
+					ui.flowOut = new NodeItems["OConnectorItem"](null,Connector.TYPE_FLOW);
+					ui.root.appendChild(ui.flowOut.ui.conn);
+					ui.flowOut.ui.conn.classList.add("flowOut");
+				}
+
+				//Add Events
+				ui.root.addEventListener("mousedown",function(e){
+					e.stopPropagation(); e.preventDefault();
+					if(e.target.tagName != "I") EditorManager.beginNodeDrag(oThis,e.pageX,e.pageY);
+				});
+
+				return ui;
+			}
+		}
+
+		//--------------------------------------------------------------------------
+		class EditorManager{
+			static init(){
+				EditorManager.svg = new sage.Svg("svgcanvas");
+				EditorManager.Nodes = [];
+			}
+
+			static getNodeByID(id){
+				var node = EditorManager.Nodes[id];
+				if(node == undefined) return null;
+				return node;
+			}
+
+			static addNode(ndef){
+				//Object.assign(ndef);
+				var node = new NodeBox(ndef);
+				EditorManager.Nodes[node.getID()] = node;
+				return node;
+			}
+
+			static loadSavedState(nList,cList){
+				var i;
+				//Remake the nodes
+				for(i=0; i < nList.length; i++) EditorManager.addNode(nList[i]);
+
+				//Remake the connections.
+				//console.log(EditorManager.Nodes);
+				//setTimeout(function(){},100);
+				var outNode = null,inNode = null, iconn,oconn;
+				for(i=0; i < cList.length; i++){
+					if(outNode == null || outNode.getID() != cList[i].nodeOutputID) outNode = EditorManager.getNodeByID(cList[i].nodeOutputID);
+					if(inNode == null || inNode.getID() != cList[i].nodeInputID) inNode = EditorManager.getNodeByID(cList[i].nodeInputID);
+
+					if(outNode != null && inNode != null){
+						switch(cList[i].type){
+							case Connector.TYPE_FLOW: outNode.flowTo(inNode,cList[i].uuid); break;
+							case Connector.TYPE_DATA: 	
+								outNode.outputTo(
+									cList[i].outputID,
+									inNode.getItemByID(cList[i].inputID),
+									cList[i].uuid
+								);
+							break;
+						}
+					}
+				}
+			}
+
+			static saveState(){
+				var list = EditorManager.Nodes;
+				var n;
+				for(n in list){
+					console.log(list[n].serialize());
+				}
+			}
+
+			/*...........................................................
+			Dragging Nodes */
+			static beginNodeDrag(n,x,y){
+				if(EditorManager.dragMode != 0) return;
+				var pos = n.getPosition();
+
+				EditorManager.dragMode = EditorManager.DRAG_NODE;
+				EditorManager.dragItem = n;
+				this.offsetX = pos.x - x;
+				this.offsetY = pos.y - y;
+
+				window.addEventListener("mousemove",EditorManager.onNodeDragMouseMove);
+				window.addEventListener("mouseup",EditorManager.onNodeDragMouseUp);
+			}
+
+			static onNodeDragMouseUp(e){
+				e.stopPropagation(); e.preventDefault();
+				EditorManager.dragItem = null;
+				EditorManager.dragMode = 0;
+
+				window.removeEventListener("mousemove",EditorManager.onNodeDragMouseMove);
+				window.removeEventListener("mouseup",EditorManager.onNodeDragMouseUp);
+			}
+
+			static onNodeDragMouseMove(e){
+				e.stopPropagation(); e.preventDefault();
+				if(EditorManager.dragItem){
+					EditorManager.dragItem.setPosition(e.pageX + EditorManager.offsetX,e.pageY + EditorManager.offsetY);
+				}
+			}
+
+			/*...........................................................
+			Dragging Paths */
+			static beginConnDrag(conn){
+				if(EditorManager.dragMode != 0) return;
+
+				EditorManager.dragMode = EditorManager.DRAG_PATH;
+				EditorManager.dragItem = conn;
+
+				window.addEventListener("click",EditorManager.onConnDragClick);
+				window.addEventListener("mousemove",EditorManager.onConnDragMouseMove);
+			}
+
+			static endConnDrag(){
+				EditorManager.dragMode = 0;
+				EditorManager.dragItem = null;
+
+				window.removeEventListener("click",EditorManager.onConnDragClick);
+				window.removeEventListener("mousemove",EditorManager.onConnDragMouseMove);
+			}
+
+			//Clicking anywhere other then an input will result in diposing the connection.
+			static onConnDragClick(e){
+				e.stopPropagation(); e.preventDefault();
+
+				EditorManager.dragItem.dispose();
+				EditorManager.endConnDrag();
+			}
+
+			static onConnDragMouseMove(e){
+				e.stopPropagation(); e.preventDefault();
+				if(EditorManager.dragItem) EditorManager.dragItem.setEndPos(e.pageX,e.pageY);
+			}
+		}
+
+		EditorManager.DRAG_NODE = 1;
+		EditorManager.DRAG_PATH = 2;
+
+		EditorManager.dragMode = 0;
+		EditorManager.dragItem = null;    //reference to the dragging item
+		EditorManager.offsetX = 0;        //OffsetX for dragging nodes
+		EditorManager.offsetY = 0;        //OffsetY for dragging nodes
+		EditorManager.svg = null;         //SVG where the line paths are drawn.
+
+
+var savedConn = [
+	{"uuid":"cf62bf01-bc6e-4eb1-a363-42fb9712f999","inputID":null,"nodeInputID":"153d698a-8990-4316-8b73-3ed1bd73775b","outputID":null,"nodeOutputID":"772fcd87-0dd8-4882-a43a-101458377b4a","type":2}
+	,{"uuid":"699bf623-9092-4974-84b5-a3421bb7af30","inputID":null,"nodeInputID":"aa97d26c-cc40-4b47-b87a-3ead422e8070","outputID":null,"nodeOutputID":"772fcd87-0dd8-4882-a43a-101458377b4a","type":2}
+	,{"uuid":"4c192fcc-e072-4797-81a4-4229a4c1a635","inputID":"714728a6-0654-46b9-9079-f9951700f13d","nodeInputID":"153d698a-8990-4316-8b73-3ed1bd73775b","outputID":"f96629c1-ef2f-45f7-a7a1-ed3538b82ba9","nodeOutputID":"772fcd87-0dd8-4882-a43a-101458377b4a","type":1}
+	,{"uuid":"a7219697-506d-45de-a145-80f2d484739c","inputID":"714728a6-0654-46b9-9079-f9951700f13d","nodeInputID":"aa97d26c-cc40-4b47-b87a-3ead422e8070","outputID":"f96629c1-ef2f-45f7-a7a1-ed3538b82ba9","nodeOutputID":"772fcd87-0dd8-4882-a43a-101458377b4a","type":1}
+];
+
+var savedNodes = [
+	{"uuid":"772fcd87-0dd8-4882-a43a-101458377b4a","name":"MS Compiler","color":"Green","xpos":240,"ypos":138,"width":300,"items":[{"uuid":"57a2cf5d-43d4-4047-a358-74fdcb39b750","name":"BuildFile","itemType":"StringItem","value":""},{"uuid":"f96629c1-ef2f-45f7-a7a1-ed3538b82ba9","name":"BuildPath","itemType":"OConnectorItem"},{"uuid":"a81d7e2c-4bf5-404d-9dcf-78d8993624d3","name":"FakeInput","itemType":"IConnectorItem"}]}
+	,{"uuid":"153d698a-8990-4316-8b73-3ed1bd73775b","name":"Cert Signer","color":"Orange","xpos":672,"ypos":46,"width":250,"items":[{"uuid":"a62adea7-25ca-4df8-a735-38bfcca45958","name":"Executable","itemType":"StringItem","value":"updater.exe"},{"uuid":"714728a6-0654-46b9-9079-f9951700f13d","name":"Root Path","itemType":"IConnectorItem"}]}
+	,{"uuid":"aa97d26c-cc40-4b47-b87a-3ead422e8070","name":"Cert Signer","color":"Orange","xpos":742,"ypos":178,"width":250,"items":[{"uuid":"a62adea7-25ca-4df8-a735-38bfcca45958","name":"Executable","itemType":"StringItem","value":"updater.exe"},{"uuid":"714728a6-0654-46b9-9079-f9951700f13d","name":"Root Path","itemType":"IConnectorItem"}]}
+];
+	</script>
+
+</body>
+</html>
