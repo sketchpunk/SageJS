@@ -4,7 +4,7 @@ body{background:url(../_shared/bg_grid.png);}
 
 /*---------------------------------------
 Responsive Design, So the node boxes can fold into one column on smaller screens.*/
-.rowFlex{ display:flex; flex-direction:column;}
+.rowFlex{ display:flex; flex-direction:column; }
 .rowFlex > section{ flex:1; padding:20px;}
 
 @media (min-width:768px) {

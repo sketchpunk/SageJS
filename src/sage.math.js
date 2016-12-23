@@ -15,10 +15,10 @@ sage.math.radDeg = function(v){ return v * (180/Math.PI); }
 sage.math.degRad = function(v){ return v * (Math.PI/180); }
 
 //Constants
-sage.math.RAD360 = Math.PI * 2;
-sage.math.RAD90 = Math.PI / 2;
-sage.math.RAD45 = sage.math.RAD90/2;
-sage.math.RAD135 = sage.math.RAD90 + sage.math.RAD45;
+//sage.math.RAD360 = Math.PI * 2;
+//sage.math.RAD90 = Math.PI / 2;
+//sage.math.RAD45 = sage.math.RAD90/2;
+//sage.math.RAD135 = sage.math.RAD90 + sage.math.RAD45;
 
 
 /*======================================================
@@ -32,7 +32,7 @@ sage.math.Vector2 = class{
 
 	//=======================
 	//Getters and Setters
-	set(x,y){ this.x=x; this.y=y; }
+	set(x,y){ this.x=x; this.y=y; return this;}
 
 	getMagnitude(){ return Math.sqrt(this.x*this.x + this.y*this.y); }
 	setMagnitude(mag){
@@ -51,20 +51,24 @@ sage.math.Vector2 = class{
 		this.y = Math.sin(angle) * mag;
 	}
 
-
 	//=======================
 	//Math operations
+	addNewXY(x,y)		{ return new sage.math.Vector2(this.x + x, this.y - y); }
+	subtractNewXY(x,y)	{ return new sage.math.Vector2(this.x - x, this.y - y); }
+
 	addNew(v)		{ return new sage.math.Vector2(this.x + v.x, this.y - v.y); }
 	subtractNew(v)	{ return new sage.math.Vector2(this.x - v.x, this.y - v.y); }
 	multiplyNew(v)	{ return new sage.math.Vector2(this.x * v.x, this.y * v.y); }
 	divideNew(v)	{ return new sage.math.Vector2(this.x / v.x, this.y . v.y); }
 
-	add(v)			{ this.x += v.x; this.y += v.y; }
-	subtract(v)		{ this.x -= v.x; this.y -= v.y; }
-	multiply(v)		{ this.x *= v.x; this.y *= v.y; }
-	divide(v)		{ this.x /= v.x; this.y /= v.y; }
+	add(v)			{ this.x += v.x; this.y += v.y; return this; }
+	subtract(v)		{ this.x -= v.x; this.y -= v.y; return this; }
+	multiply(v)		{ this.x *= v.x; this.y *= v.y; return this; }
+	divide(v)		{ this.x /= v.x; this.y /= v.y; return this; }
 
-	multiScalar(v)	{ this.x *= v; this.y *= v;}
+	multiScalar(v)	{ this.x *= v; this.y *= v; return this;}
+
+	normalize()		{ var mag = this.getMagnitude(); this.x /= mag; this.y /= mag; return this;}
 
 	//=======================
 	//Static Methods
@@ -86,6 +90,13 @@ sage.math.Collision = class{
 		
 		return pos;
 	}
+
+	static circlePoint(cr,cx,cy,px,py){ return (sage.math.posDistance(cx,cy,px,py) <= cr); }
+
+	
+	//,inRange: function(v,min,max){ return v >= Math.min(min,max) && v <= Math.max(min,max); }
+	//,pointInRect: function(x,y,rect){ return utils.inRange(x,rect.x,rect.x + rect.width) && utils.inRange(y,rect.y,rect.y + rect.height); }
+
 };
 
 

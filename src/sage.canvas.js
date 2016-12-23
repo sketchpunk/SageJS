@@ -26,6 +26,19 @@ sage.Canvas = class{
 		*/
 	}
 
+	setFullScreen(){
+		this.width = this.elm.width = window.innerWidth
+		this.height = this.elm.height = window.innerHeight;
+
+		var box = this.elm.getBoundingClientRect();
+		this.offsetX = box.left;
+		this.offsetY = box.top;
+
+		return this;
+	}
+
+	setInitTranslate(wNorm,hNorm){ this.ctx.translate(this.width * wNorm,this.height * hNorm); return this; }
+
 	setLine(w,style,aryDash){
 		if(w !== undefined && w != null) this.ctx.lineWidth = w;
 		if(style !== undefined && style != null) this.ctx.strokeStyle = style;
@@ -61,7 +74,17 @@ sage.Canvas = class{
 		if(color !== undefined && color != null) this.ctx.fillStyle = color;
 
 		this.ctx.beginPath();
-		this.ctx.arc(x, y, r, 0, sage.math.RAD360, false);
+		this.ctx.arc(x, y, r, 0, Math.PI*2, false);
+		this.ctx.fill();
+
+		return this;
+	}
+
+	drawCirclePos(pos,r,color){
+		if(color !== undefined && color != null) this.ctx.fillStyle = color;
+
+		this.ctx.beginPath();
+		this.ctx.arc(pos.x, pos.y, r, 0, Math.PI*2, false);
 		this.ctx.fill();
 
 		return this;
@@ -81,6 +104,8 @@ sage.Canvas = class{
 		else for(var i=1; i < arguments.length; i++) this.ctx.lineTo(arguments[i].x, arguments[i].y);
 
 		this.ctx.stroke();
+
+		return this;
 	}
 
 	drawLineRawArg(){
@@ -101,6 +126,7 @@ sage.Canvas = class{
 
 	drawText(x,y,txt){
   		this.ctx.fillText(txt,x,y);
+  		return this;
 	}
 
 	drawCircle(isStroke,x,y,r,startAng,endAng){
@@ -118,6 +144,16 @@ sage.Canvas = class{
 		
 		if(isStroke) this.ctx.stroke();
 		else this.ctx.fill();
+		return this;
+	}
+
+	drawCurve(a,b,c,d,color){
+		if(color !== undefined && color != null) this.ctx.strokeStyle = color;
+
+		this.ctx.beginPath();
+		this.ctx.moveTo(a.x, a.y);
+		this.ctx.bezierCurveTo(b.x, b.y,  c.x, c.y,  d.x, d.y);
+		this.ctx.stroke();
 		return this;
 	}
 

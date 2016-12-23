@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../_shared/shared.css">
+		<style>
+			html,body{margin:0px;}
+			canvas {display:block;}
+		</style>
+		<script src="../../src/sage.canvas.js"></script>
+		<script src="../../src/sage.math.js"></script>
+	</head>
+<body>
+
+<canvas id="canvas001" style="background-color:;"></canvas>
+
+	<div class="NodeContainer" style="display:inline-block; position:absolute; top:10px; left:10px; width:400px;">
+		<header>Bezier Spline</header>
+		
+		<div class="ctrRow" style="padding-bottom:5px; padding-top:5px;">
+			<span>Show : </span>
+			<input type="checkbox" id="use1" name="rmerge" onClick="oUI.showCurve = this.checked; oUI.render();" checked><label for="use1">Curve</label>
+			<input type="checkbox" id="use2" name="rmerge" onClick="oUI.showPoints = this.checked; oUI.render();" checked><label for="use2">Points</label>
+			<input type="checkbox" id="use3" name="rmerge" onClick="oUI.showSamples = this.checked; oUI.render();" ><label for="use3">Samples</label>
+			<input type="checkbox" id="use4" name="rmerge" onClick="oUI.showDirection = this.checked; oUI.render();" ><label for="use4">Direction</label>
+		</div>
+		<div class="ctrRow"  style="padding-bottom:5px; padding-top:5px;">
+			<input type="button" onClick="oSpline.addCurve(); oUI.render(); " value="Add Extra Curve">
+		</div>
+	</div>
+
+<script>
+
+var oCanvas,oSpline,oUI,oLoop;
+window.onload = function(e){
+	oCanvas = new sage.Canvas("canvas001").setFullScreen();
+
+	oSpline = new BezierSpline(50,300);//.setLoop(false).addCurve();
+	console.log("CurveCount ",oSpline.curveCount());
+	
+	oUI = new BezierSplineUI(oCanvas,oSpline);
+	//oUI.renderOnMove = false;
+
+	oUI.render();
+
+	oMove = new BezierSplineMove(oCanvas,oSpline,120);
+
+	oLoop = new RenderLoop(function(dt){
+		oCanvas.clear();
+		oUI.render();
+		oMove.renderNext();
+	},40).start();
+
+};
+
+
+class BezierSpline{
+	constructor(x,y){
+		this.mPoints = [
+			new sage.math.Vector2(x+50,y),
+			new sage.math.Vector2(x+100,y),
+			new sage.math.Vector2(x+150,y),
+			new sage.math.Vector2(x+200,y)
+		];
+		this.isLoop = false;
+		this.mModes = [ BezierSpline.MODE_FREE,BezierSpline.MODE_MIRROR ]; //One element for each main point, not the controller points
+	}
+
+	//.......................................................
+	//Getter/Setters
+	curveCount(){ return (this.mPoints.length - 1) / 3;}			//Get how many curves exist in the points array
+	getLastPoint(){ return this.mPoints[this.mPoints.length-1]; }
+	getPointMode(i){ return this.mModes[Math.floor( (i+1)/3 )]; }	//Get the mode of any point on the array
+
+	setLoop(state){
+		this.isLoop = state;
+		if(state){
+			var p = this.mPoints, l = p.length-1;
+			p[l].set(p[0].x,p[0].y); //Set Last point to match first
+			this.mModes[this.mModes.length-1] = this.mModes[0]; //Set the modes for both points.
+			this.applyConstraints(1);
+		}
+		return this;
+	}
+	
+	//Get the vec2 of a certain time on the curve.
+	getPoint(t,rtn){
+		var i;
+		if( t >= 1){ //Final Curve in the spline
+			t = 1;
+			i = this.mPoints.length - 4;
+		}else{ //Determine which curve is being accessed.
+			if(t < 0) t = 0;
+			/* NOTE TO SELF
+			This only work if norm is less then 1, 1 can screw things up so the condition above prevents things from breaking.
+			The idea is to multiple t by total curves in the spline. This gives you a whole number and fraction. Ex : t = 0.6 cnt = 2, results 1.2
+			The result gives both the curve index to access and the normal to apply to it. So for the example we need to access the
+			second segment, so by flooring we strip out the decimal we get the value 1 (second curve where 0 would be the first based on indexes).
+			If we take the T minus the Index to get the decimal which also works as the new normal that can be applied to the second curve.
+			From there we just need to multiple by 3 to get the starting index of the curve.
+			*/
+			t *= this.curveCount(); //determine which curve we're accessing by using the norm times curve count, Must be less then 1 to work.
+			i = Math.floor(t);		//Curve index by stripping out the decimal
+			t -= i;					//Strip out the whole number to get the decimal norm to be used for the curve 
+			i *= 3;					//Each curve starts at the 4th point in the array, so times 3 gets us the index where the curve starts.	
+		}
+
+		var p = this.mPoints;
+		return BezierSpline.getPoint(p[i],p[i+1],p[i+2],p[i+3],t,rtn);
+	}
+	
+	//Get normalized vec3 of the direction at a certain time on the curve
+	getDirection(t,rtn){
+		var i;
+		if( t >= 1){ //Final Curve in the spline
+			t = 1;
+			i = this.mPoints.length - 4;
+		}else{ //Determine which curve is being accessed.
+			if(t < 0) t = 0;
+			t *= this.curveCount(); //determine which curve we're accessing by using the norm times curve count, Must be less then 1 to work.
+			i = Math.floor(t);		//Curve index by stripping out the decimal
+			t -= i;					//Strip out the whole number to get the decimal norm to be used for the curve 
+			i *= 3;					//Each curve starts at the 4th point in the array, so times 3 gets us the index where the curve starts.	
+		}
+
+		var p = this.mPoints;
+		return BezierSpline.getFirstDerivative(p[i],p[i+1],p[i+2],p[i+3],t,rtn).normalize();
+	}
+
+	//Set the X,Y Position of a specific point in the array, be it main points or control points.
+	setPoint(i,x,y){
+		var p = this.mPoints[i];
+
+		//if its a main point, lets me the control points as well;
+		if(i%3 == 0){
+			var delta = p.subtractNewXY(x,y);
+
+			//if moving first point when in loop
+			if(this.isLoop && i == 0){
+				this.mPoints[1].subtract(delta);						//Set Next Control Point
+				this.mPoints[this.mPoints.length-2].subtract(delta);	//Set Prev
+				this.mPoints[this.mPoints.length-1].set(x,y);			//Set Last Point to match first
+			//When Moving the last point when in loop
+			}else if(this.isLoop && i == this.mPoints.length-1){
+				this.mPoints[0].set(x,y);								//Set First Point to match last
+				this.mPoints[1].subtract(delta);						//Set Next Control Point
+				this.mPoints[i-1].subtract(delta);						//Set Prev
+			//Handle points normally
+			}else{	
+				if(i > 0) this.mPoints[i-1].subtract(delta); //Previous point
+				if(i < this.mPoints.length-1) this.mPoints[i+1].subtract(delta); //Next Point
+			}			
+		}
+
+		p.set(x,y);
+		this.applyConstraints(i);
+	}
+
+	//.......................................................
+	//Public Method
+	addCurve(){
+		var lp = this.getLastPoint();
+
+		//Add 3 more points that extend away from the last point
+		this.mPoints.push(lp.addNewXY(50,0));
+		this.mPoints.push(lp.addNewXY(100,0));
+		this.mPoints.push(lp.addNewXY(150,0));
+
+		//Set the mode for the new end point, default as free.
+		this.mModes.push(BezierSpline.MODE_ALIGNED);
+
+		this.applyConstraints(this.mPoints.length-5);
+
+		if(this.isLoop){
+			var p = this.mPoints;
+			p[p.length-1].set(p[0].x,p[0].y);
+			this.mModes[this.mModes.length-1] = this.mModes[0];
+			this.applyConstraints(1);
+		}
+
+		return this;
+	}
+
+	//.......................................................
+	//Private Functions
+	applyConstraints(i){
+		var mode = this.getPointMode(i),
+			iMode = Math.floor((i+1)/3); //Which main point are we accessing by using the mode array. Only points with two controller points need to be constrained.
+
+		//Don't apply if in free mode OR a mode point OR is the first or last mode points in the spline.
+		if(mode == BezierSpline.MODE_FREE || i%3 == 0 || !this.isLoop && (iMode == 0 || iMode == this.mModes.length-1)) return;
+		
+		//........................................................
+		var iApply = 0, //to Apply to the other control point
+			iCenter = iMode * 3; // Each mode point is 3 points away from eachother. this converts mode index to point index.
+		
+		//Figure out which control point is the one that will get its data update to match the mode value
+		if(i < iCenter){ //Left Control Point Updated
+			iApply = iCenter+1;
+			if(iApply >= this.mPoints.length) iApply = 1; //Incase of looping after the end, we get the first control point
+		}else{	//Right Control Point Updated
+			iApply = iCenter-1;
+			if(iApply < 0) iApply = this.mPoints.length - 2; //Incase of looping before the beginning, we get the last control point
+		}
+
+		//........................................................
+		var pCenter = this.mPoints[iCenter],
+			pApply = this.mPoints[iApply],
+			pNew = pCenter.subtractNew(this.mPoints[i]); //Get the delta of the control point from the center
+		
+		//in aligned mode, want both control points to share the same angle but allow different distances.
+		if(mode == BezierSpline.MODE_ALIGNED){
+			var dist = sage.math.posDistance(pCenter.x,pCenter.y,pApply.x,pApply.y);
+			pNew.normalize().multiScalar(dist);
+		}
+
+		pNew.add(pCenter);		//Now add the center to the delta which creates the position for the applying control point
+		pApply.set(pNew.x,pNew.y);
+	}
+
+	//.......................................................
+	//Static functions
+	static getPoint(p0,p1,p2,p3,t,rtn){
+		var i = 1 - t;
+		rtn = rtn || {};
+
+		rtn.x = i * i * i * p0.x +
+				3 * i * i * t * p1.x +
+				3 * i * t * t * p2.x +
+				t * t * t * p3.x;
+
+		rtn.y = i * i * i * p0.y +
+				3 * i * i * t * p1.y +
+				3 * i * t * t * p2.y +
+				t * t * t * p3.y;
+
+		return rtn;
+	}
+
+	static getFirstDerivative(p0,p1,p2,p3,t,rtn){
+		//Clamp t betwen 0 and 1
+		if(t > 1) t = 1;
+		else if(t < 0) t = 0;
+
+		var i = 1 - t;
+		rtn = rtn || new sage.math.Vector2();
+
+		rtn.x = 3 * i * i * (p1.x - p0.x) +
+				6 * i * t * (p2.x - p1.x) +
+				3 * t * t * (p3.x - p2.x);
+		
+		rtn.y = 3 * i * i * (p1.y - p0.y) +
+				6 * i * t * (p2.y - p1.y) +
+				3 * t * t * (p3.y - p2.y);
+
+		return rtn;
+	}
+}
+
+BezierSpline.MODE_FREE = 0;
+BezierSpline.MODE_MIRROR = 1;
+BezierSpline.MODE_ALIGNED = 2;
+
+
+class BezierSplineUI{
+	constructor(canvas,spline){
+		this.canvas = canvas;			//Reference to canvas
+		this.spline = spline;			//Ref to spline
+
+		this.selectedIndex = -1;		//Track which point index is being dragged
+		this.selectedPoint = null;		//also save reference to point
+
+		this.showCurve = true;			//Show the curve
+		this.showPoints = true;			//Show the points and the control lines
+		this.showSamples = false;		//Show the sample dots
+		this.showDirection = false;		//Show the direction that the points are going
+
+		this.sampleCount = 20;			//How many samples to display, the points and direction lines
+		this.dirLength = 40;			//How long direction lines should be
+
+		this.pointSize = 5;				//How big the point circles should be
+		
+		this.renderOnMove = true;		//Render spline when dragging points
+
+		this.modeColors = ["white","yellow","#00ccff"];	//Color for each mode to tell them apart.
+
+		var oThis = this;	//Setup mouse handlers to be added and removed at run time
+		this.mouseUpHandler = function(e){ oThis.onMouseUp(e); }
+		this.mouseMoveHandler = function(e){ oThis.onMouseMove(e); }
+
+		window.addEventListener("mousedown",function(e){ oThis.onMouseDown(e); }); //Handle the starting of dragging points around.
+	}
+
+	//..........................................................
+	//helper functions
+
+	//Tests if the user has clicked on a spot where a point exists on the canvas.
+	isPointClicked(x,y){
+		var p = this.spline.mPoints;
+		for(var i=0; i < p.length; i++){
+			if(sage.math.Collision.circlePoint(this.pointSize+2,p[i].x,p[i].y,x,y)){
+				this.selectedIndex = i;
+				this.selectedPoint = p[i];
+				return true;
+			}
+		}
+		return false;
+	}
+
+	//..........................................................
+	//Drawing functions
+	render(){
+		var p = this.spline.mPoints;
+		if(this.renderOnMove) this.canvas.clear();
+
+		for(var i=0; i < p.length; i++){
+			//Only draw this section when at the start of a new curve
+
+			if(i%3 == 0 && i < p.length-1){
+				//Draw Bezier Curve
+				if(this.showCurve) this.canvas.drawCurve(p[i],p[i+1],p[i+2],p[i+3],"lime"); 
+				
+				//Draw connector Lines
+				if(this.showPoints) this.canvas.setLine(2,"#606060")
+										.drawLine(p[i],p[i+1])
+										.drawLine(p[i+2],p[i+3]);
+			}
+
+			//Draw Points
+			if(this.showPoints)
+				this.canvas.drawCirclePos(p[i],this.pointSize, this.modeColors[ this.spline.getPointMode(i) ]);
+		}
+
+		if(this.showSamples || this.showDirection){
+			var step = 1 / this.sampleCount;
+			
+			for(var i=0; i < this.sampleCount; i++) this.drawSamples(i*step);
+			this.drawSamples(1);
+		}
+	}
+
+	//Creates the sample dots and the direction lines
+	drawSamples(t){
+		var pos = new sage.math.Vector2(),
+			dir = new sage.math.Vector2();
+
+		this.spline.getPoint(t,pos);
+			
+		if(this.showDirection){
+			this.spline.getDirection(t,dir);
+			dir.multiScalar(this.dirLength).add(pos);
+			this.canvas.setLine(2,"red").drawLine(pos,dir);
+		}
+
+		if(this.showSamples) this.canvas.circle(pos.x,pos.y,3,"red");
+	}
+
+
+	//..........................................................
+	//Point Dragging Events
+	onMouseDown(e){
+		if(this.isPointClicked(e.clientX,e.clientY)){
+			this.dragOffsetX = this.selectedPoint.x - e.clientX;
+			this.dragOffsetY = this.selectedPoint.y - e.clientY;
+
+			window.addEventListener("mousemove",this.mouseMoveHandler);
+			window.addEventListener("mouseup",this.mouseUpHandler);
+		}
+	}
+
+	onMouseUp(e){
+		window.removeEventListener("mousemove",this.mouseMoveHandler);
+		window.removeEventListener("mouseup",this.mouseUpHandler);
+		this.selectedIndex = -1;
+		this.selectedPoint = null;
+	}
+
+	onMouseMove(e){
+		this.spline.setPoint(this.selectedIndex, e.clientX + this.dragOffsetX, e.clientY + this.dragOffsetY);
+		if(this.renderOnMove) this.render();
+	}
+}
+
+class BezierSplineMove{
+	constructor(canvas,spline,steps){
+		this.canvas = canvas;			//Reference to canvas
+		this.spline = spline;			//Ref to spline
+		this.steps = 1/steps;			//How many steps to go threw the spline
+		this.time = 0;
+		this.dir = 0;
+		this.v2 = new sage.math.Vector2();
+	}
+
+	renderNext(){
+		if(this.dir == 0){
+			this.time += this.steps;
+			if(this.time > 1){
+				this.time = 1;
+				this.dir = 1;
+			}
+		}else{
+			this.time -= this.steps;
+			if(this.time < 0){
+				this.time = 0;
+				this.dir = 0;
+			}
+		}
+
+		this.spline.getPoint(this.time,this.v2);
+		this.canvas.drawCirclePos(this.v2,10, "orange");
+	}
+}
+
+
+
+class RenderLoop{
+	constructor(callback,fps){
+		var oThis = this;
+		this.msLastFrame = null;
+		this.callBack = callback;
+		this.isActive = false;
+		this.fps = 0;
+
+		if(fps > 0){ //Build a run method that limits the framerate
+			this.msFpsLimit = 1000/fps; //Calc how many MS per frame in one second of time.
+			this.run = function(){
+				//Calculate Deltatime between frames and the FPS currently.
+				var msCurrent	= performance.now(),
+					msDelta		= (msCurrent - oThis.msLastFrame),
+					deltaTime	= msDelta / 1000.0;
+				
+				if(msDelta >= oThis.msFpsLimit){ //Now execute frame since the time has elapsed.
+					oThis.fps			= Math.floor(1/deltaTime);
+					oThis.msLastFrame	= msCurrent;
+					oThis.callBack(deltaTime);
+				}
+
+				if(oThis.isActive) window.requestAnimationFrame(oThis.run);
+			}
+		}else{ //Else build a run method thats optimised as much as possible.
+			this.run = function(){
+				//Calculate Deltatime between frames and the FPS currently.
+				var msCurrent	= performance.now(),
+					deltaTime	= (msCurrent - oThis.msLastFrame) / 1000.0;
+
+				//Now execute frame since the time has elapsed.
+				oThis.fps			= Math.floor(1/deltaTime);
+				oThis.msLastFrame	= msCurrent;
+
+				oThis.callBack(deltaTime);
+				if(oThis.isActive) window.requestAnimationFrame(oThis.run);
+			}
+		}
+	}
+
+	start(){
+		this.isActive = true;
+		this.msLastFrame = performance.now();
+		window.requestAnimationFrame(this.run);
+		return this;
+	}
+
+	stop(){ this.isActive = false; }
+}
+</script>
+
+</body>
+</html>
