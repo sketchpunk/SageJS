@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<style>
+			html,body{margin:0px; padding:0px; width:100%; height:100%;}
+			body{}
+		</style>
+		<script src="gl.js"></script>
+		<script src="DataStructs.js"></script>
+		<script src="Shader.js"></script>
+		<script src="RenderLoop.js"></script>
+		<script src="Transform.js"></script>
+		<script src="Modal.js"></script>
+
+
+
+		<!--
+		vao basicly pre defines what buffers goes to what shader attribute, kinda like a macro.
+		So the idea is to have a vao record buffer to attrib relation, then just bind the vao before drawing
+		else you would need to bind the attrib for each buffer for each frame.
+
+		Need to define default shader attributes, Vertices(Position) v3, Index int, UV v2, Normals v3. The shader will
+		then have get methods to allow a mesh to setup the vao with the correct attribute indexes for
+		the specific shader.
+		-->
+
+		<script>
+			var gl,shader,tri,camera,cube;
+			var m4p,m4mv;
+			var rloop,cMouse;
+			window.addEventListener("load",function(){
+				gl = GLInstance("glcanvas")
+					.fSetBackgroundColor(0,0,0,1)
+					.fSetSize(500,500)
+					.fClear();
+				
+
+				//......................................
+				camera = new Camera(gl,45,0.1,100.0);
+				camera.transform.position.set(0,0,5);
+				//camera.transform.rotation.y = 20;
+				cMouse = new MouseCamera(gl.canvas,camera);
+
+				shader = new Shader_Simple2DColor(gl,camera.projectionMatrix);
+
+				tri = new TriangleModal(gl,shader);
+				tri.transform.position.set(-1.2,0,0);
+
+				cube = new Cube(gl,shader,1,1,1);
+				cube.transform.position.z = -5;
+
+				sqr = new SquareModal(gl,shader);
+				sqr.transform.position.set(1.2,0,0);
+
+				//......................................
+				shader.setCameraMatrix(camera.updateViewMatrix());
+				tri.render();
+				sqr.render();
+				cube.render();
+
+				//......................................
+				//shader.deactivate();
+			});
+
+
+			class MouseCamera{
+				constructor(canvas,camera){
+					var oThis = this;
+					var box = canvas.getBoundingClientRect();
+					this.canvas = canvas;
+					this.camera = camera;
+					
+					this.offsetX = box.left;
+					this.offsetY = box.top;
+
+					this.initX = 0;
+					this.initY = 0;
+					this.prevX = 0;
+					this.prevY = 0;
+
+					this.onUpHandler = function(e){ oThis.onMouseUp(e); };
+					this.onMoveHandler = function(e){ oThis.onMouseMove(e); }
+
+					canvas.addEventListener("mousedown",function(e){ oThis.onMouseDown(e); });
+					canvas.addEventListener("mousewheel", function(e){ oThis.onMouseWheel(e); });
+				}
+
+				getMouseVec2(e){ return {x:e.pageX - this.offsetX, y:e.pageY - this.offsetY}; }
+
+				onMouseDown(e){
+					this.initX = this.prevX = e.pageX - this.offsetX;
+					this.initY = this.prevY = e.pageY - this.offsetY;
+
+					this.canvas.addEventListener("mouseup",this.onUpHandler);
+					this.canvas.addEventListener("mousemove",this.onMoveHandler);
+				}
+
+				onMouseUp(e){
+					this.canvas.removeEventListener("mouseup",this.onUpHandler);
+					this.canvas.removeEventListener("mousemove",this.onMoveHandler);
+				}
+
+				onMouseWheel(e){
+					var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+					this.camera.transform.position.z += delta * 0.2;
+
+					gl.fClear();
+					shader.setCameraMatrix(camera.updateViewMatrix());
+					tri.render();
+					sqr.render();
+				}
+
+				onMouseMove(e){
+					var x = e.pageX - this.offsetX,
+						y = e.pageY - this.offsetY;
+					//console.log(x - this.prevX, y - this.prevY,e.shiftKey);
+
+					if(!e.shiftKey){
+						this.camera.transform.rotation.y += (x - this.prevX) * 0.15;
+						this.camera.transform.rotation.x += -(y - this.prevY) * 0.15;
+					}else{
+						this.camera.transform.position.x += (x - this.prevX) * 0.05;
+						this.camera.transform.position.y += (y - this.prevY) * 0.05;
+					}
+
+					gl.fClear();
+					shader.setCameraMatrix(camera.updateViewMatrix());
+					//tri.render();
+					//sqr.render();
+					cube.render();
+
+					this.prevX = x;
+					this.prevY = y;
+				}
+			}
+
+
+			class Camera{
+				constructor(gl,fov,near,far){
+					//Setup the perspective matrix
+					this.projectionMatrix = new Float32Array(16);
+					var ratio = gl.canvas.width / gl.canvas.height;
+					Matrix4.perspective(this.projectionMatrix,fov,ratio,near,far);
+
+					//Setup transform to control the position of the camera
+					this.transform = new Transform();
+
+					//Cache the matrix that will hold the inverse of the transform.
+					this.viewMatrix = new Float32Array(16);
+				}
+
+				updateViewMatrix(){
+					Matrix4.invert(this.viewMatrix,this.transform.updateMatrix());
+					return this.viewMatrix;
+				}
+			}
+
+			class Shader_Simple2DColor extends Shader{
+				constructor(gl,projectionMatrix){
+					var vertSrc = ShaderUtil.domShaderSrc("vertex_shader"),
+						fragSrc = ShaderUtil.domShaderSrc("fragment_shader");
+					super(gl,vertSrc,fragSrc,projectionMatrix);
+				}
+			}
+
+			class SquareModal extends Modal{
+				constructor(gl,shader){
+					var aryVerts = [
+						1.0,  1.0,  0.0,
+						-1.0, 1.0,  0.0,
+						1.0,  -1.0, 0.0,
+						-1.0, -1.0, 0.0
+					];
+
+					super(gl,shader,aryVerts);
+					this.drawMode = gl.TRIANGLE_STRIP;
+				}
+			}
+
+			class TriangleModal extends Modal{
+				constructor(gl,shader){
+					var aryVerts = [
+						 0.0,  1.0,  0.0,
+						-1.0, -1.0,  0.0,
+						 1.0, -1.0,  0.0
+					];
+
+					super(gl,shader,aryVerts);
+				}
+			}
+
+			class Cube extends Modal{
+				constructor(gl,shader,width,height,depth){
+					//determine the size of the cube in 3d Space with the origin at its center.
+					var w = width*0.5, h = height*0.5, d = depth*0.5,
+						trig = [];		//Holds the triangle indexes, each square face is 6 floats
+
+					//..............................
+					//Create the front face based on the size, then generate the back by changing Z
+					var v = [	-w, -h, d,
+								 w, -h, d,
+								 w,  h, d,
+								-w,  h, d ];
+					var vertLen = v.length;
+
+					for(var i=0; i < vertLen; i++) v.push((i%3 != 2)? v[i] : -v[i] );
+
+					//..............................
+					//Using the 8 points that create the front and back face, create the remaining 4 faces
+					//by going around the cube to generate the vertices of the remaining faces (bottom,right,top,left)
+					var inc = 0,
+						ind = 0,
+						sqr = [0,0,0,0];
+					
+					for(var x=0; x < 4; x++){
+						inc = (x+1)%4;
+						sqr[0] = x+4;
+						sqr[1] = inc+4;
+						sqr[2] = inc;
+						sqr[3] = x;
+
+						for(var i=0; i < sqr.length; i++){
+							ind = sqr[i]*3;
+							v.push(v[ ind ]);
+							v.push(v[ ind+1 ]);
+							v.push(v[ ind+2 ]);
+						}
+					}
+
+					//..............................
+					//Create all the triangles for the cube [0,1,2] [2,3,0]
+					var vectorCnt = v.length/ 3;
+					for(var i=0; i < vectorCnt; i+=2){
+						trig.push(i);
+						trig.push(i+1);
+						trig.push( (Math.floor(i/4)*4)+((i+2)%4) );
+					}
+
+
+					var aryNorm = [
+					  // Front
+					   0.0,  0.0,  1.0,
+					   0.0,  0.0,  1.0,
+					   0.0,  0.0,  1.0,
+					   0.0,  0.0,  1.0,
+					  // Back
+					   0.0,  0.0, -1.0,
+					   0.0,  0.0, -1.0,
+					   0.0,  0.0, -1.0,
+					   0.0,  0.0, -1.0,
+					  // Bottom
+					   0.0, -1.0,  0.0,
+					   0.0, -1.0,  0.0,
+					   0.0, -1.0,  0.0,
+					   0.0, -1.0,  0.0,
+					  // Right
+					   1.0,  0.0,  0.0,
+					   1.0,  0.0,  0.0,
+					   1.0,  0.0,  0.0,
+					   1.0,  0.0,  0.0,
+					  // Top
+					   0.0,  1.0,  0.0,
+					   0.0,  1.0,  0.0,
+					   0.0,  1.0,  0.0,
+					   0.0,  1.0,  0.0,
+					  // Left
+					  -1.0,  0.0,  0.0,
+					  -1.0,  0.0,  0.0,
+					  -1.0,  0.0,  0.0,
+					  -1.0,  0.0,  0.0
+					];
+					//..............................
+					//push the data to the graphics card
+					//this.cubeVertBuffer = cgl.createBuffer(this.v);
+					//this.colorBuffer = cgl.createBuffer(this.colors);
+					//this.cubeIndexBuf = cgl.createElmAryBuffer(this.trig);
+
+					super(gl,shader,v,trig);
+
+					//cgl.mGL.bindBuffer(cgl.mGL.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuf );
+				}
+
+			}
+		</script>
+	</head>
+<body>
+
+<div style="display:flex; width:100%; height:100%; align-items:center; justify-content:center;">
+	<canvas id="glcanvas"></canvas>
+	<!--<div style="width:500px; height:500px; border:1px solid red;"></div>-->
+</div>
+
+<script id="vertex_shader" type="x-shader/x-vertex">#version 300 es
+	in vec3 a_position;
+	in vec3 a_normal;
+	
+	//attribute vec3 aVertPos;
+	uniform mat4 uPMatrix;
+	uniform mat4 uMVMatrix;
+	uniform mat4 uCameraMatrix;
+
+	out vec4 color;
+
+	void main(void) {
+		gl_Position = uPMatrix * uCameraMatrix * uMVMatrix * vec4(a_position, 1.0);
+		color = vec4(a_position * 0.5 + 0.5, 1.0); //-1 to 1 into 0 to 1
+	}
+</script>
+
+<script id="fragment_shader" type="x-shader/x-fragment">#version 300 es
+	precision mediump float;
+
+	in vec4 color;
+	
+	out vec4 outColor;
+	
+	void main(void) {
+		//gl_FragColor = color; //vec4(1.0, 1.0, 1.0, 1.0);
+		outColor = color;
+	}
+</script>
+
+</body>
+</html>
