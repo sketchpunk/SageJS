@@ -5,130 +5,48 @@
 			canvas{ border:1px solid red; width:500px; height:500px;}
 		</style>
  		
-
 		<script src="sage.webgl.js"></script>
 		<script src="sage.webgl.CanvasGL.js"></script>
 		<script src="sage.webgl.Shader.js"></script>
 		<script>
-			var cgl;
+		
+	
 
-var vertices = [
-  // Front face
-  -1.0, -1.0,  1.0,
-   1.0, -1.0,  1.0,
-   1.0,  1.0,  1.0,
-  -1.0,  1.0,  1.0,
-  
-  // Back face
-  -1.0, -1.0, -1.0,
-  -1.0,  1.0, -1.0,
-   1.0,  1.0, -1.0,
-   1.0, -1.0, -1.0,
-  
-  // Top face
-  -1.0,  1.0, -1.0,
-  -1.0,  1.0,  1.0,
-   1.0,  1.0,  1.0,
-   1.0,  1.0, -1.0,
-  
-  // Bottom face
-  -1.0, -1.0, -1.0,
-   1.0, -1.0, -1.0,
-   1.0, -1.0,  1.0,
-  -1.0, -1.0,  1.0,
-  
-  // Right face
-   1.0, -1.0, -1.0,
-   1.0,  1.0, -1.0,
-   1.0,  1.0,  1.0,
-   1.0, -1.0,  1.0,
-  
-  // Left face
-  -1.0, -1.0, -1.0,
-  -1.0, -1.0,  1.0,
-  -1.0,  1.0,  1.0,
-  -1.0,  1.0, -1.0
-];
-
-var colors = [
-  [1.0,  1.0,  1.0,  1.0],    // Front face: white
-  [1.0,  0.0,  0.0,  1.0],    // Back face: red
-  [0.0,  1.0,  0.0,  1.0],    // Top face: green
-  [0.0,  0.0,  1.0,  1.0],    // Bottom face: blue
-  [1.0,  1.0,  0.0,  1.0],    // Right face: yellow
-  [1.0,  0.0,  1.0,  1.0]     // Left face: purple
-];
-
-var generatedColors = [];
-
-for (j=0; j<6; j++) {
-  var c = colors[j];
-  
-  for (var i=0; i<4; i++) {
-    generatedColors = generatedColors.concat(c);
-  }
-}
-
-
-  var cubeVertexIndices = [
-    0,  1,  2,      0,  2,  3,    // front
-    4,  5,  6,      4,  6,  7,    // back
-    8,  9,  10,     8,  10, 11,   // top
-    12, 13, 14,     12, 14, 15,   // bottom
-    16, 17, 18,     16, 18, 19,   // right
-    20, 21, 22,     20, 22, 23    // left
-  ];
-
-  			var cgl,sqrMesh,shader,camera,colorBuf,renderLoop;
+  			var cgl,shader,camera,renderLoop,meshCube;
 			window.addEventListener("load",function(){
-				
-
-				//Prepare WebGL
+				//Prepare WebGL and Camera
 				cgl = new sage.webgl.CanvasGL("canvas01");
 				cgl.setSize(500,500);
 				camera  = new sage.webgl.Camera()
 					.setPosition(0.0,0.0,-5.0)
 					.setPerspective(45,500/500,0.1,100.00);
 
-				//Get Mesh
-				//sqrMesh = new sage.webgl.Mesh(sqrVerts,cgl);
-				//sqrMesh.position.z = -6.0;
+				//Procedurally Generated Cube
+				meshCube = new CubeMesh(cgl,2,2,2);
 
-				//var cubeVerticesColorBuffer = cgl.createBuffer(generatedColors);
-				var meshCube = new CubeMesh(cgl,2,2,2);
-
-				var cubeVertBuffer = cgl.createBuffer(vertices);
-				var colorBuffer = cgl.createBuffer(generatedColors);
-				var cubeIndexBuf = cgl.createElmAryBuffer(cubeVertexIndices);
-
+				//Define the shader that will render the mesh
 				shader = new sage.webgl.Shader(cgl);
 				shader.createProgram("vertShader","fragShader",false);
 				shader.addAttrib("aVertexPosition",3,meshCube.cubeVertBuffer);
 				shader.addAttrib("aVertexColor",4,meshCube.colorBuffer);
 				shader.addUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
 				shader.addUniformMatrix4fv("uPMatrix",camera.getPerspectiveMatrix());
-
-				//Render Scene.
-				//cgl.clear();
-				//sqrMesh.draw(cgl);
-
-				cgl.mGL.bindBuffer(cgl.mGL.ELEMENT_ARRAY_BUFFER, meshCube.cubeIndexBuf);
-  
+  				
+  				//Animation Loop handler
 				renderLoop = new sage.webgl.RenderLoop(onDraw);
 				renderLoop.start();
-				//window.requestAnimationFrame(onDraw);
-
-				//cgl.render(sqrMesh,shader);
 			});
 
 			function onDraw(delta){
-				delta *= 0.4;
-				cgl.clear();
+				delta *= 0.4; //Slow down the rotation speed
+				cgl.clear(); //clear the scene
+
+				//Rotate the camera position then update the shader with its position.
 				camera.rotateZ(180 * delta).rotateX(180*delta);
 				shader.updateUniformMatrix4fv("uMVMatrix",camera.getViewMatrix());
-				
-				cgl.mGL.drawElements(cgl.mGL.TRIANGLES, 12, cgl.mGL.UNSIGNED_SHORT, 0);
-				//sqrMesh.draw(cgl); //Draw mesh with the active shader.
+					
+				//Render the cube.
+				meshCube.draw(cgl);
 			}
 		</script>
 	</head>
@@ -157,31 +75,93 @@ for (j=0; j<6; j++) {
 </script>
 
 <canvas id="canvas01"></canvas>
-
 	<script>
+		function randomRng(min,max){ return min + Math.random() * (max - min); }
+		
+		sage.Debug = class{
+			static args(){
+				var txt = "";
+				for(var i=0; i < arguments.length; i++) txt += arguments[i] + " : ";
+				console.log(txt.substr(0,txt.length-3));
+			}
+		}
+
+
 		class CubeMesh{
 			constructor(cgl,width,height,depth){
+				//determine the size of the cube in 3d Space with the origin at its center.
 				var w = width/2.0, h = height/2.0, d = depth/2.0;
 
-				//Create the front face based on the size.
+				//..............................
+				//Create the front face based on the size, then generate the back by changing Z
 				this.v = [ -w, -h, d,
 							w, -h, d,
 							w, h, d,
 							-w, h, d ];
 				var vertLen = this.v.length;
-				for(var i=0; i < vertLen; i++){
-					this.v.push((i%3 != 2)? this.v[i] : -this.v[i] );
+				for(var i=0; i < vertLen; i++) this.v.push((i%3 != 2)? this.v[i] : -this.v[i] );
+
+				this.trig = [];		//Holds the triangle indexes, each square face is 6 floats
+				this.colors = [];	//Hold the color for all the vertices of the square, RGBA (4 floats per vertex);
+
+				//..............................
+				//Using the 8 points that create the front and back face, create the remaining 4 faces
+				//by going around the cube to generate the vertices of the remaining faces (bottom,right,top,left)
+				var inc = 0,
+					ind = 0,
+					sqr = [0,0,0,0];
+				
+				for(var x=0; x < 4; x++){
+					inc = (x+1)%4;
+					sqr[0] = x+4;
+					sqr[1] = inc+4;
+					sqr[2] = inc;
+					sqr[3] = x;
+
+					for(var i=0; i < sqr.length; i++){
+						ind = sqr[i]*3;
+						this.v.push(this.v[ ind ]);
+						this.v.push(this.v[ ind+1 ]);
+						this.v.push(this.v[ ind+2 ]);
+					}
 				}
 
-				console.log(this.v);
+				//..............................
+				//Create all the triangles for the cube [0,1,2] [2,3,0]
+				var vectorCnt = this.v.length/ 3;
+				for(var i=0; i < vectorCnt; i+=2){
+					this.trig.push(i);
+					this.trig.push(i+1);
+					this.trig.push( (Math.floor(i/4)*4)+((i+2)%4) );
+				}
 
-				this.trig = [ 0,1,2, 2,3,0 ,4,5,6 ,6,7,4 ];
-				this.colors = [1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0, 1.0,0.0,0.0,1.0
-					,0.0,1.0,0.0,1.0 ,0.0,1.0,0.0,1.0 ,0.0,1.0,0.0,1.0 ,0.0,1.0,0.0,1.0 ];
+				//..............................
+				//Create a random color for each face of the cube.
+				var r,g,b;
+				for(var i=0; i < vectorCnt/4; i++){
+					r = randomRng(0,1);
+					g = randomRng(0,1);
+					b = randomRng(0,1);
 
+					for(var x=0; x < 4; x++){
+						this.colors.push(r);
+						this.colors.push(g);
+						this.colors.push(b);
+						this.colors.push(1.0);
+					}
+				}
+
+				//..............................
+				//push the data to the graphics card
 				this.cubeVertBuffer = cgl.createBuffer(this.v);
 				this.colorBuffer = cgl.createBuffer(this.colors);
 				this.cubeIndexBuf = cgl.createElmAryBuffer(this.trig);
+
+				//cgl.mGL.bindBuffer(cgl.mGL.ELEMENT_ARRAY_BUFFER, this.cubeIndexBuf );
+			}
+
+			draw(cgl){
+				cgl.mGL.drawElements(cgl.mGL.TRIANGLES, this.trig.length, cgl.mGL.UNSIGNED_SHORT, 0);
 			}
 		}
 	</script>
