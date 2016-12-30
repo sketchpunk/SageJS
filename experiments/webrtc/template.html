@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<link rel="stylesheet" type="text/css" href="../_shared/shared.css">
+	</head>
+<body>
+
+<script>
+
+var conn;
+
+window.addEventListener("load",function(){
+	
+	//conn = new RTCPeerConnection(conf); 
+	//conn.onaddstream = function(stream){
+	//	console.log(stream); 
+   	//	// use stream here 
+	//}; 
+
+});
+
+/*
+function hasUserMedia() { 
+   var getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia; 
+   console.log(getUserMedia);
+   return !!getUserMedia; 
+}
+ 
+if (hasUserMedia()) { 
+   navigator.getUserMedia = navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia || navigator.msGetUserMedia;
+		
+   //get both video and audio streams from user's camera 
+   navigator.getUserMedia({ video: true, audio: true }, function (stream) { 
+      var video = document.querySelector('video'); 
+		
+      //insert stream into the video tag 
+      video.src = window.URL.createObjectURL(stream); 
+   }, function (err) {}); 
+	
+}else {
+   console.log("Error. WebRTC is not supported!"); 
+}
+*/
+
+</script>
+
+<video autoplay></video> 
+<div class="rowFlex">
+	<section>
+		<div class="NodeContainer">
+			<header>test</header>
+			test<br>
+			test
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header>test</header>
+			<canvas id="canvas2"></canvas>
+			<div class="ctrRow">
+				<span>Aptitude : </span><label>219</label><input id="apt2" class="slider" type="range" min="10" max="400" value="219" onInput="preview(this);" onChange="setAptitude(d2,this)"/>
+			</div>
+			<div class="ctrRow">
+				<span>Merge Method : </span>
+				<input type="radio" id="rmerge1" name="rmerge" onClick="setMerge(0);" checked><label for="rmerge1">Add</label>
+				<input type="radio" id="rmerge2" name="rmerge" onClick="setMerge(1);"><label for="rmerge2">Average</label>
+			</div>
+
+			<div class="ctrRow">
+				<span>Use : </span>
+				<input type="checkbox" id="use1" name="rmerge" onClick="setUseSin(this);" checked><label for="use1">Sine</label>
+				<input type="checkbox" id="use2" name="rmerge" onClick="setUsePerlin(this);" checked><label for="use2">Perlin</label>
+				<input type="checkbox" id="use3" name="rmerge" onClick="setUseRand(this);" checked><label for="use3">Random</label>
+			</div>
+		</div>
+	</section>
+
+	<section>
+		<div class="NodeContainer">
+			<header>Math.Randomness :)</header>
+
+			test
+		</div>
+	</section>
+</div>
+
+<div class="rowFlex">
+	<section>
+		<p style="color:#a0a0a0; bottom:1px;">
+			<i style="color:lime;">Test</i><br>
+			Test<br><br>
+
+			- <a href="https://github.com/sketchpunk/SageJS" style="color:orange;text-decoration:none;">Test</a><br>
+			<br><br>&copy; 2016 Sketchpunk Labs;
+		</p>
+	</section>
+</div>
+
+</body>
+</html>

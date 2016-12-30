@@ -14,9 +14,14 @@ class Vector3{
 		return Math.sqrt( x*x + y*y + z*z );
 	}
 
-	set(x,y,z){ this.x = x; this.y = y; this.z = z;	}
+	normalize(){ var mag = this.magnitude(); this.x /= mag; this.y /= mag; this.z /= mag; return this;}
+
+	set(x,y,z){ this.x = x; this.y = y; this.z = z;	return this; }
+
+	multiScalar(v){ this.x *= v; this.y *= v; this.z *= v; return this; }
 
 	getArray(){ return [this.x,this.y,this.z]; }
+	getFloatArray(){ return new Float32Array([this.x,this.y,this.z]);}
 	clone(){ return new Vector3(this.x,this.y,this.z); }
 }
 
@@ -130,6 +135,87 @@ class Matrix4{
 		out[15] = 1;
 	};
 
+
+	//https://github.com/toji/gl-matrix/blob/master/src/gl-matrix/mat4.js
+	//make the rows into the columns
+	static transpose(out, a){
+		//If we are transposing ourselves we can skip a few steps but have to cache some values
+		if (out === a) {
+			var a01 = a[1], a02 = a[2], a03 = a[3], a12 = a[6], a13 = a[7], a23 = a[11];
+			out[1] = a[4];
+			out[2] = a[8];
+			out[3] = a[12];
+			out[4] = a01;
+			out[6] = a[9];
+			out[7] = a[13];
+			out[8] = a02;
+			out[9] = a12;
+			out[11] = a[14];
+			out[12] = a03;
+			out[13] = a13;
+			out[14] = a23;
+		}else{
+			out[0] = a[0];
+			out[1] = a[4];
+			out[2] = a[8];
+			out[3] = a[12];
+			out[4] = a[1];
+			out[5] = a[5];
+			out[6] = a[9];
+			out[7] = a[13];
+			out[8] = a[2];
+			out[9] = a[6];
+			out[10] = a[10];
+			out[11] = a[14];
+			out[12] = a[3];
+			out[13] = a[7];
+			out[14] = a[11];
+			out[15] = a[15];
+		}
+
+		return out;
+	}
+
+	//Calculates a 3x3 normal matrix (transpose inverse) from the 4x4 matrix
+	static normalMat3(out,a){
+		var a00 = a[0], a01 = a[1], a02 = a[2], a03 = a[3],
+			a10 = a[4], a11 = a[5], a12 = a[6], a13 = a[7],
+			a20 = a[8], a21 = a[9], a22 = a[10], a23 = a[11],
+			a30 = a[12], a31 = a[13], a32 = a[14], a33 = a[15],
+
+			b00 = a00 * a11 - a01 * a10,
+			b01 = a00 * a12 - a02 * a10,
+			b02 = a00 * a13 - a03 * a10,
+			b03 = a01 * a12 - a02 * a11,
+			b04 = a01 * a13 - a03 * a11,
+			b05 = a02 * a13 - a03 * a12,
+			b06 = a20 * a31 - a21 * a30,
+			b07 = a20 * a32 - a22 * a30,
+			b08 = a20 * a33 - a23 * a30,
+			b09 = a21 * a32 - a22 * a31,
+			b10 = a21 * a33 - a23 * a31,
+			b11 = a22 * a33 - a23 * a32,
+
+		// Calculate the determinant
+		det = b00 * b11 - b01 * b10 + b02 * b09 + b03 * b08 - b04 * b07 + b05 * b06;
+
+		if (!det) return null;
+
+		det = 1.0 / det;
+
+		out[0] = (a11 * b11 - a12 * b10 + a13 * b09) * det;
+		out[1] = (a12 * b08 - a10 * b11 - a13 * b07) * det;
+		out[2] = (a10 * b10 - a11 * b08 + a13 * b06) * det;
+
+		out[3] = (a02 * b10 - a01 * b11 - a03 * b09) * det;
+		out[4] = (a00 * b11 - a02 * b08 + a03 * b07) * det;
+		out[5] = (a01 * b08 - a00 * b10 - a03 * b06) * det;
+
+		out[6] = (a31 * b05 - a32 * b04 + a33 * b03) * det;
+		out[7] = (a32 * b02 - a30 * b05 - a33 * b01) * det;
+		out[8] = (a30 * b04 - a31 * b02 + a33 * b00) * det;
+		return out;
+	}
 
 	//....................................................................
 	//Static Operation

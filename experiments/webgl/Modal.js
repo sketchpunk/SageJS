@@ -1,44 +1,116 @@
-/*
-Notes:
-
-At some point need to seperate modal data and its bufffers as a single class that gets reference by a different object.
-So the idea is to have a single set of mesh data buffers that can be referenced by many transform objects. For instance,
-when creating trees, its better to have a single buffer on the gpu then use different transforms to render the mesh
-at different position, scale or rotation. Think the mesh object should also have the option to have different shaders
-applied to it, even thought I can't think of a reason why but nice to have the option to switch shaders incase of some
-mechanic needs to be achieved.
-*/
-
 class Modal{
-	constructor(gl,shader,vertAry,indAry,normAry){
-		this.transform = new Transform();					//Object handles all the data for the Modal View Matrix data needed for the shader
-		this.gl = gl;										//Just a reference back to the GL context
-		this.shader = shader;								//Reference back to the shader, so during render it can push its transform value into it.
+	constructor(meshData){
+		this.transform = new Transform();
+		this.meshData = meshData;
+	}
+
+	//Things to do before its time to render
+	preRender(){ this.transform.updateMatrix(); }
+
+	//Quick way to get the raw Model View Matrix.
+	getViewMatrix(){ return this.transform.matrix.raw; }
+}
+
+class ModalMouse{
+	constructor(canvas,modal){
+		var oThis = this;
+		var box = canvas.getBoundingClientRect();
+		this.canvas = canvas;
+		this.modal = modal;
 		
-		this.vertexLen = 3;									//How many floats make up a vertex
-		this.vertexCount = vertAry.length / this.vertexLen;	//How many vertices exist in the mesh
+		this.offsetX = box.left;
+		this.offsetY = box.top;
 
-		this.drawMode = gl.TRIANGLES;						//Make the draw mode dynamic, some modals might need to render in different modes
+		this.initX = 0;
+		this.initY = 0;
+		this.prevX = 0;
+		this.prevY = 0;
 
-		//Creating all the buffers and setup the VAO to make rendering width a shader quick and easy.
-		this.renderData = ShaderUtil.createStandardVOA(gl,vertAry,shader.attribLoc.position,indAry,normAry,shader.attribLoc.norm);
+		this.onUpHandler = function(e){ oThis.onMouseUp(e); };
+		this.onMoveHandler = function(e){ oThis.onMouseMove(e); }
+
+		this.onTouchEndHandler = function(e){ e.preventDefault(); oThis.onTouchEnd(e); }
+		this.onTouchMoveHandler = function(e){ e.preventDefault(); oThis.onTouchMove(e); }
+
+		canvas.addEventListener("mousedown",function(e){ oThis.onMouseDown(e); });
+		canvas.addEventListener("mousewheel", function(e){ oThis.onMouseWheel(e); });
+
+		canvas.addEventListener("touchstart",function(e){ e.preventDefault(); oThis.onTouchStart(e); })
 	}
 
-	render(){
-		this.shader.setModalMatrix(this.transform.updateMatrix());	//Set the transform, so the shader knows where the modal exists in 3d space
+	getMouseVec2(e){ return {x:e.pageX - this.offsetX, y:e.pageY - this.offsetY}; }
+	getTouchVec2(e){ return {x:e.changedTouches[0].pageX - this.offsetX, y:e.changedTouches[0].pageY - this.offsetY}; }
 
-		this.gl.bindVertexArray(this.renderData.vao);				//Enable VAO, this will set all the predefined attributes for the shader
-		//this.gl.enableVertexAttribArray(0);
-		//this.gl.enableVertexAttribArray(1);
+	onTouchStart(e){
+		this.initX = this.prevX = e.changedTouches[0].pageX - this.offsetX;
+		this.initY = this.prevY = e.changedTouches[0].pageY - this.offsetY;
 
-		if(this.renderData.indexLength){
-			//gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,this.renderData.bufIndex);
-			this.gl.drawElements(this.drawMode, this.renderData.indexLength, gl.UNSIGNED_SHORT, 0);
-			//gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,null);
-		}else this.gl.drawArrays(this.drawMode, 0, this.vertexCount);		//The Actual rendering
-
-		this.gl.bindVertexArray(null);								//Unbind the voa.
+		this.canvas.addEventListener("touchcancel",this.onTouchEndHandler);
+		this.canvas.addEventListener("touchend",this.onTouchEndHandler);
+		this.canvas.addEventListener("touchleave",this.onTouchEndHandler);
+		this.canvas.addEventListener("touchmove",this.onTouchMoveHandler);
 	}
 
-	//TODO create method to delete voa and buffers.
+	onTouchEnd(e){
+		this.canvas.removeEventListener("touchcancel",this.onTouchEndHandler);
+		this.canvas.removeEventListener("touchend",this.onTouchEndHandler);
+		this.canvas.removeEventListener("touchleave",this.onTouchEndHandler);
+		this.canvas.removeEventListener("touchmove",this.onTouchMoveHandler);
+	}
+
+	onTouchMove(e){
+		e.preventDefault();
+		var x = e.changedTouches[0].pageX - this.offsetX,
+			y = e.changedTouches[0].pageY - this.offsetY;
+
+		if(!e.shiftKey){
+			this.modal.transform.rotation.y += (x - this.prevX) * 0.7;
+			this.modal.transform.rotation.x += (y - this.prevY) * 0.3;
+		}else{
+			this.modal.transform.position.x += (x - this.prevX) * 0.01;
+			this.modal.transform.position.y += -(y - this.prevY) * 0.01;
+		}
+
+		this.prevX = x;
+		this.prevY = y;
+	}
+
+
+	onMouseDown(e){
+		e.preventDefault();
+		this.initX = this.prevX = e.pageX - this.offsetX;
+		this.initY = this.prevY = e.pageY - this.offsetY;
+
+		this.canvas.addEventListener("mouseup",this.onUpHandler);
+		this.canvas.addEventListener("mousemove",this.onMoveHandler);
+	}
+
+	onMouseUp(e){
+		e.preventDefault();
+		this.canvas.removeEventListener("mouseup",this.onUpHandler);
+		this.canvas.removeEventListener("mousemove",this.onMoveHandler);
+	}
+
+	onMouseWheel(e){
+		e.preventDefault();
+		var delta = Math.max(-1, Math.min(1, (e.wheelDelta || -e.detail)));
+		this.modal.transform.position.z += delta * 0.2;
+	}
+
+	onMouseMove(e){
+		e.preventDefault();
+		var x = e.pageX - this.offsetX,
+			y = e.pageY - this.offsetY;
+
+		if(!e.shiftKey){
+			this.modal.transform.rotation.y += (x - this.prevX) * 0.7;
+			this.modal.transform.rotation.x += (y - this.prevY) * 0.3;
+		}else{
+			this.modal.transform.position.x += (x - this.prevX) * 0.01;
+			this.modal.transform.position.y += -(y - this.prevY) * 0.01;
+		}
+
+		this.prevX = x;
+		this.prevY = y;
+	}
 }

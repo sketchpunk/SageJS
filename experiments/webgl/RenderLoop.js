@@ -1,5 +1,4 @@
 /*
-
 rloop = new RenderLoop(function(dt){ 
 	console.log(rloop.fps + " " + dt);
 },10).start();
