@@ -14,34 +14,46 @@
 		<script src="Transform.js"></script>
 		<script src="Camera.js"></script>
 		<script src="Modal.js"></script>
-		<!--<script src="Primitives.js"></script>-->
+		<script src="Primitives.js"></script>
 
 		<script>
 			var gl,shader,camera,glLoader;
 			var rloop,cMouse;
 			var mainModal;
+			var basicShader;
+			var axisMesh,gridMesh;
 
 			window.addEventListener("load",function(){
 				gl = GLInstance("glcanvas")
 					.fSetBackgroundColor(1,1,1,1)
 					.fFitScreen(0.98,0.95) //.fSetSize(500,500)
-					.fClear();
+					.fClear()
 
 				glLoader = new GLLoader(gl);
 				glLoader.loadTexture("modalTexture",document.getElementById("imgTex"));
 
 				//......................................
 				camera = new Camera(gl,45,0.1,100.0);
-				camera.transform.position.set(0,0,5);
+				camera.transform.position.set(0,2,5);
+				//camera.transform.rotation.set(-45,45,20);
 				
+				basicShader = new BasicShader(gl,camera.projectionMatrix);
+				basicShader.setStaticColor(0.7,0.7,0.7);
+				//console.log(basicShader.attribLoc);
+				//console.log(basicShader.uniformLoc);
+
 				shader = new TextureShader(gl,camera.projectionMatrix);
 				shader.setMainTexture(glLoader.textures["modalTexture"]);
 
 				mainModal = new Modal( glLoader.domObjToMesh("objMesh","obj_pirategirl") );
-				mainModal.transform.position.set(0,-2,0);
+				mainModal.transform.position.set(0,0,0);
 				//mainModal.transform.rotation.set(0,45,0);
 
-				cMouse = new ModalMouse(gl.canvas,mainModal);
+				//cMouse = new ModalMouse(gl.canvas,mainModal);
+				cMouse = new MouseCamera(gl.canvas,camera);
+
+				axisMesh = Axis.createMesh(glLoader);
+				gridMesh = Grid.createMesh(glLoader);
 
 				//......................................
 				shader.preRender();
@@ -51,11 +63,26 @@
 			});
 
 			function onRender(dt){
-				shader.setCameraMatrix(camera.updateViewMatrix());
+				camera.updateViewMatrix();
 
 				gl.fClear();
-				mainModal.preRender();
-				shader.renderModal(mainModal);
+
+				//Main Shaders and modals
+				
+				shader.activate();
+					shader.setCameraMatrix(camera.viewMatrix);
+					
+					mainModal.preRender();
+					shader.renderModal(mainModal);
+				shader.deactivate();
+
+
+				//Editor Stuff.
+				basicShader.activate();
+					basicShader.setCameraMatrix(camera.viewMatrix);
+					basicShader.useStaticColor(true).renderModal(gridMesh);
+					basicShader.useStaticColor(false).renderModal(axisMesh);
+				basicShader.deactivate();
 			}
 
 			class TextureShader extends Shader{
@@ -76,6 +103,7 @@
 
 				setMainTexture(texID){ this.mainTexture = texID; }
 
+				//Override
 				preRender(){
 					//Setup Texture
 					this.gl.activeTexture(this.gl.TEXTURE0);
@@ -88,14 +116,42 @@
 					this.gl.uniform3f(this.uniformLoc.ambientColor,0.25,0.25,0.25);
 				}
 
+				//Override
 				renderModal(modal){
-					var matNormal = new Float32Array(9);
-					Matrix4.normalMat3(matNormal,modal.getViewMatrix());
-
-					this.gl.uniformMatrix3fv(this.uniformLoc.normMatrix, false, matNormal);
+					this.gl.uniformMatrix3fv(this.uniformLoc.normMatrix, false, modal.transform.getNormalMatrix());
 					super.renderModal(modal);
 				}
 			}
+
+			class BasicShader extends Shader{
+				constructor(gl,projectionMatrix){
+					var vertSrc = ShaderUtil.domShaderSrc("vertexBasic"),
+						fragSrc = ShaderUtil.domShaderSrc("fragmentBasic");
+					super(gl,vertSrc,fragSrc,projectionMatrix);
+
+					this.attribLoc.color = gl.getAttribLocation(this.program,"a_color");
+					this.uniformLoc.color = gl.getUniformLocation(this.program,"uColor");
+					this.uniformLoc.useStaticColor = gl.getUniformLocation(this.program,"uUseStaticColor");
+				}
+
+				setStaticColor(r,g,b){ this.gl.uniform3f(this.uniformLoc.color,r,g,b); return this; }
+				useStaticColor(isOk){ this.gl.uniform1i(this.uniformLoc.useStaticColor, (isOk)?1:0); return this; }
+
+				renderModal(mesh){
+					this.gl.lineWidth(1);
+
+					//this.setModalMatrix(modal.getViewMatrix());		//Set the transform, so the shader knows where the modal exists in 3d space
+					this.gl.bindVertexArray(mesh.vao);	//Enable VAO, this will set all the predefined attributes for the shader
+					//this.gl.enableVertexAttribArray(0);
+					
+					this.gl.drawElements(this.gl.LINES, mesh.indexLength, gl.UNSIGNED_SHORT, 0);
+
+					//this.gl.disableVertexAttribArray(0);
+					this.gl.bindVertexArray(null);	
+				}
+			}
+
+			
 		</script>
 	</head>
 <body>
@@ -156,6 +212,41 @@
 	    outColor = vec4(outColor.rgb * vLightWeighting, outColor.a);
 	}
 </script>
+
+<script id="vertexBasic" type="x-shader/x-vertex">#version 300 es
+	in vec3 a_position;
+	in vec3 a_color;
+
+	uniform mat4 uPMatrix;
+	uniform mat4 uCameraMatrix;
+	uniform vec3 uColor;
+	uniform int uUseStaticColor;
+
+	out vec4 color;
+
+	void main(void) {
+		gl_Position = uPMatrix * uCameraMatrix * vec4(a_position, 1.0);
+
+		if(uUseStaticColor == 1){
+			color = vec4(uColor,1.0);
+		}else{
+			color = vec4(a_color,1.0); //vec4(1,0,0,0.1);// vec4(a_position * 0.5 + 0.5, 1.0); //-1 to 1 into 0 to 1
+		}
+	}
+</script>
+
+<script id="fragmentBasic" type="x-shader/x-fragment">#version 300 es
+	precision mediump float;
+
+	in vec4 color;
+	out vec4 outColor;
+	
+	void main(void) {
+		//gl_FragColor = color; //vec4(1.0, 1.0, 1.0, 1.0);
+		outColor = color;
+	}
+</script>
+
 
 <script id="obj_pirategirl" type="text/plain">
 # Blender v2.77 (sub 0) OBJ File: 'Pirate Girl_upload.blend'

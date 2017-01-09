@@ -6,9 +6,6 @@ class Modal{
 
 	//Things to do before its time to render
 	preRender(){ this.transform.updateMatrix(); }
-
-	//Quick way to get the raw Model View Matrix.
-	getViewMatrix(){ return this.transform.matrix.raw; }
 }
 
 class ModalMouse{

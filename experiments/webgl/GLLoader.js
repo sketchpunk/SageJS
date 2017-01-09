@@ -11,6 +11,7 @@ class GLLoader{
 
 	loadTexture(name,img){
 		var id = this.gl.createTexture();
+		this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, true);
 
 		this.gl.bindTexture(this.gl.TEXTURE_2D,id);
 		this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, img);
@@ -21,6 +22,7 @@ class GLLoader{
 
 		this.gl.bindTexture(this.gl.TEXTURE_2D,null);
 		this.textures[name] = id;
+		this.gl.pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL, false);
 		return id;		
 	}
 
@@ -168,7 +170,8 @@ class GLLoader{
 								ind = (parseInt(ary[1])-1) * 2;
 								//console.log(cUV[ind],cUV[ind+1],ind);
 								fUV.push(cUV[ind]);
-								fUV.push(1-cUV[ind+1]); //Need to flip the Y Position, WebGL UV coords are different from Blender.
+								fUV.push(cUV[ind+1]); //dont need to flip data if using pixelStorei(this.gl.UNPACK_FLIP_Y_WEBGL when loading textures
+								//fUV.push(1-cUV[ind+1]); //Need to flip the Y Position, WebGL UV coords are different from Blender.
 							//}
 
 							//Cache the vertex item value and its new index.

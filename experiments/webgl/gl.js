@@ -24,7 +24,6 @@ function GLInstance(canvasID){
 	gl.depthFunc(gl.LEQUAL);		//Near things obscure far things
 	gl.clearColor(0.0,0.0,0.0,1.0);	//Set clear color
 
-
 	//--------------------------------------------------------------------------
 	//Misc Methods
 	gl.fClear = function(){ this.clear(this.COLOR_BUFFER_BIT | this.DEPTH_BUFFER_BIT); return this; }

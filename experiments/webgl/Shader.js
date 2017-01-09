@@ -6,6 +6,10 @@ class Shader{
 			this.gl = gl;
 			gl.useProgram(this.program);
 
+			//https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBindAttribLocation.xml
+			//gl.bindAttribLocation(this.program,5,"a_position"); //need to bind before the program is linked.
+			//gl.enableVertexAttribArray(5); //Might have to do this in the render
+
 			this.attribLoc = ShaderUtil.getStandardAttribLocations(gl,this.program);
 			this.uniformLoc = ShaderUtil.getStandardUniformLocations(gl,this.program);
 
@@ -23,12 +27,13 @@ class Shader{
 	preRender(){} //abstract method
 
 	renderModal(modal){
-		this.setModalMatrix(modal.getViewMatrix());		//Set the transform, so the shader knows where the modal exists in 3d space
+		this.setModalMatrix(modal.transform.getViewMatrix());		//Set the transform, so the shader knows where the modal exists in 3d space
 		this.gl.bindVertexArray(modal.meshData.vao);	//Enable VAO, this will set all the predefined attributes for the shader
-
+		//this.gl.enableVertexAttribArray(0);
 		if(modal.meshData.indexLength) this.gl.drawElements(modal.meshData.drawMode, modal.meshData.indexLength, gl.UNSIGNED_SHORT, 0);
 		else this.gl.drawArrays(modal.meshData.drawMode, 0, modal.meshData.vertexCount);
 
+		//this.gl.disableVertexAttribArray(0);
 		this.gl.bindVertexArray(null);	
 	}
 

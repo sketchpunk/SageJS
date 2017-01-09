@@ -33,8 +33,11 @@ class Matrix4{
 
 	//....................................................................
 	//Transformations
-	vtranslate(vec3){ this.raw[12] = vec3.x;	this.raw[13] = vec3.y;	this.raw[14] = vec3.z;	return this; }
-	translate(x,y,z){ this.raw[12] = x;			this.raw[13] = y;		this.raw[14] = z;		return this; }
+//	vtranslate(vec3){ this.raw[12] = vec3.x;	this.raw[13] = vec3.y;	this.raw[14] = vec3.z;	return this; }
+//	translate(x,y,z){ this.raw[12] = x;			this.raw[13] = y;		this.raw[14] = z;		return this; }
+
+	vtranslate(v){		Matrix4.translate(this.raw,v.x,v.y,v.z); return this; }
+	translate(x,y,z){	Matrix4.translate(this.raw,x,y,z); return this;}
 
 	rotateY(rad){	Matrix4.rotateY(this.raw,rad); return this; }
 	rotateX(rad){	Matrix4.rotateX(this.raw,rad); return this; }
@@ -234,6 +237,15 @@ class Matrix4{
 			x*c3r1 + y*c3r2 + z*c3r3 + w*c3r4,
 			x*c4r1 + y*c4r2 + z*c4r3 + w*c4r4
 		];
+	}
+
+	//https://github.com/toji/gl-matrix/blob/master/src/gl-matrix/vec4.js, vec4.transformMat4
+	static transformVec4(out, v, m){
+		out[0] = m[0] * v[0] + m[4] * v[1] + m[8]	* v[2] + m[12] * v[3];
+		out[1] = m[1] * v[0] + m[5] * v[1] + m[9]	* v[2] + m[13] * v[3];
+		out[2] = m[2] * v[0] + m[6] * v[1] + m[10]	* v[2] + m[14] * v[3];
+		out[3] = m[3] * v[0] + m[7] * v[1] + m[11]	* v[2] + m[15] * v[3];
+		return out;
 	}
 
 	//From glMatrix
@@ -454,4 +466,11 @@ class Matrix4{
 	    return true;
 	}
 
+	//https://github.com/toji/gl-matrix/blob/master/src/gl-matrix/mat4.js  mat4.scalar.translate = function (out, a, v) {
+	static translate(out,x,y,z){
+		out[12] = out[0] * x + out[4] * y + out[8]	* z + out[12];
+		out[13] = out[1] * x + out[5] * y + out[9]	* z + out[13];
+		out[14] = out[2] * x + out[6] * y + out[10]	* z + out[14];
+		out[15] = out[3] * x + out[7] * y + out[11]	* z + out[15];
+	}
 }
