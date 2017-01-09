@@ -1,11 +1,10 @@
 class Quad{
 	static createMesh(gLoader){
 		var aVert = [ -0.5,0.5,0, -0.5,-0.5,0, 0.5,-0.5,0, 0.5,0.5,0 ],
-		aIndex = [ 0,1,2, 2,3,0 ];
-		
-		var mesh = gLoader.createMeshVAO("Quad",aIndex,aVert);
-		mesh.drawMode = gLoader.gl.TRIANGLES;
+			aUV = [ 0,0, 0,1, 1,1, 1,0 ],
+			aIndex = [ 0,1,2, 2,3,0 ];
 
+		var mesh = gLoader.createMeshVAO("Quad",aIndex,aVert,null,aUV);
 		return mesh;
 	}
 

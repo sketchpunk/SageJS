@@ -20,14 +20,17 @@
 			var gl,shader,camera,glLoader;
 			var rloop,cMouse;
 			var mainModal;
-			var basicShader;
+			var basicShader,circleShader;
 			var axisMesh,gridMesh;
+			var quad;
 
 			window.addEventListener("load",function(){
 				gl = GLInstance("glcanvas")
 					.fSetBackgroundColor(1,1,1,1)
 					.fFitScreen(0.98,0.95) //.fSetSize(500,500)
 					.fClear()
+
+
 
 				glLoader = new GLLoader(gl);
 				glLoader.loadTexture("modalTexture",document.getElementById("imgTex"));
@@ -39,14 +42,18 @@
 				
 				basicShader = new BasicShader(gl,camera.projectionMatrix);
 				basicShader.setStaticColor(0.7,0.7,0.7);
+				
+				circleShader = new CircleShader(gl,camera.projectionMatrix);
+				circleShader.setStaticColor(0.3,0.3,0.3);
 				//console.log(basicShader.attribLoc);
 				//console.log(basicShader.uniformLoc);
+
 
 				shader = new TextureShader(gl,camera.projectionMatrix);
 				shader.setMainTexture(glLoader.textures["modalTexture"]);
 
 				mainModal = new Modal( glLoader.domObjToMesh("objMesh","obj_pirategirl") );
-				mainModal.transform.position.set(0,0,0);
+				//mainModal.transform.position.set(0,0,0);
 				//mainModal.transform.rotation.set(0,45,0);
 
 				//cMouse = new ModalMouse(gl.canvas,mainModal);
@@ -54,9 +61,15 @@
 
 				axisMesh = Axis.createMesh(glLoader);
 				gridMesh = Grid.createMesh(glLoader);
+				quad = Quad.createModal(glLoader);
+				quad.transform.position.set(0,0.5,0);
+				quad.transform.scale.set(1.5,1.5,1.0);
+				quad.preRender(); //Only need to do this once.
+				//console.log(circleShader);
+
 
 				//......................................
-				shader.preRender();
+				
 				//onRender(null);
 
 				rloop = new RenderLoop(onRender,10).start();
@@ -69,13 +82,16 @@
 
 				//Main Shaders and modals
 				
+				/**/
 				shader.activate();
 					shader.setCameraMatrix(camera.viewMatrix);
-					
+					shader.preRender();
+
 					mainModal.preRender();
 					shader.renderModal(mainModal);
 				shader.deactivate();
-
+				
+				
 
 				//Editor Stuff.
 				basicShader.activate();
@@ -83,6 +99,20 @@
 					basicShader.useStaticColor(true).renderModal(gridMesh);
 					basicShader.useStaticColor(false).renderModal(axisMesh);
 				basicShader.deactivate();
+
+				circleShader.activate();
+					circleShader.setCameraMatrix(camera.viewMatrix);
+					gl.enable(gl.BLEND);
+					//gl.disable(gl.DEPTH_TEST);
+					gl.disable(gl.CULL_FACE);
+
+					gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+					circleShader.renderModal(quad);
+					//gl.enable(gl.DEPTH_TEST);
+					gl.enable(gl.CULL_FACE);
+					gl.disable(gl.BLEND);
+				circleShader.deactivate();
 			}
 
 			class TextureShader extends Shader{
@@ -132,26 +162,43 @@
 					this.attribLoc.color = gl.getAttribLocation(this.program,"a_color");
 					this.uniformLoc.color = gl.getUniformLocation(this.program,"uColor");
 					this.uniformLoc.useStaticColor = gl.getUniformLocation(this.program,"uUseStaticColor");
+					this.uniformLoc.useModalView = gl.getUniformLocation(this.program,"uUseModalView");
 				}
 
 				setStaticColor(r,g,b){ this.gl.uniform3f(this.uniformLoc.color,r,g,b); return this; }
 				useStaticColor(isOk){ this.gl.uniform1i(this.uniformLoc.useStaticColor, (isOk)?1:0); return this; }
 
 				renderModal(mesh){
-					this.gl.lineWidth(1);
+					if(mesh.meshData !== undefined){
+						this.setModalMatrix(mesh.transform.getViewMatrix());
+						this.gl.uniform1i(this.uniformLoc.useModalView,1);
+						mesh = mesh.meshData;
+					}else{
+						this.gl.uniform1i(this.uniformLoc.useModalView,0);
+					}
 
 					//this.setModalMatrix(modal.getViewMatrix());		//Set the transform, so the shader knows where the modal exists in 3d space
 					this.gl.bindVertexArray(mesh.vao);	//Enable VAO, this will set all the predefined attributes for the shader
 					//this.gl.enableVertexAttribArray(0);
 					
-					this.gl.drawElements(this.gl.LINES, mesh.indexLength, gl.UNSIGNED_SHORT, 0);
+					this.gl.drawElements(mesh.drawMode, mesh.indexLength, gl.UNSIGNED_SHORT, 0);
 
 					//this.gl.disableVertexAttribArray(0);
 					this.gl.bindVertexArray(null);	
 				}
 			}
 
-			
+			class CircleShader extends Shader{
+				constructor(gl,projectionMatrix){
+					var vertSrc = ShaderUtil.domShaderSrc("vertexCircle"),
+						fragSrc = ShaderUtil.domShaderSrc("fragmentCircle");
+					super(gl,vertSrc,fragSrc,projectionMatrix);
+
+					this.uniformLoc.color = gl.getUniformLocation(this.program,"uColor");
+				}
+
+				setStaticColor(r,g,b){ this.gl.uniform3f(this.uniformLoc.color,r,g,b); return this; }
+			}
 		</script>
 	</head>
 <body>
@@ -218,14 +265,20 @@
 	in vec3 a_color;
 
 	uniform mat4 uPMatrix;
+	uniform mat4 uMVMatrix;
 	uniform mat4 uCameraMatrix;
 	uniform vec3 uColor;
 	uniform int uUseStaticColor;
+	uniform int uUseModalView;
 
 	out vec4 color;
 
-	void main(void) {
-		gl_Position = uPMatrix * uCameraMatrix * vec4(a_position, 1.0);
+	void main(void){
+		if(uUseModalView == 1){
+			gl_Position = uPMatrix * uCameraMatrix * uMVMatrix * vec4(a_position, 1.0);
+		}else{
+			gl_Position = uPMatrix * uCameraMatrix * vec4(a_position, 1.0);
+		}
 
 		if(uUseStaticColor == 1){
 			color = vec4(uColor,1.0);
@@ -244,6 +297,50 @@
 	void main(void) {
 		//gl_FragColor = color; //vec4(1.0, 1.0, 1.0, 1.0);
 		outColor = color;
+	}
+</script>
+
+<script id="vertexCircle" type="x-shader/x-vertex">#version 300 es
+	in vec3 a_position;
+	in vec2 a_uv;
+
+	uniform mat4 uPMatrix;
+	uniform mat4 uMVMatrix;
+	uniform mat4 uCameraMatrix;
+	
+
+	//out vec4 color;
+	out vec2 texCoord;
+
+	void main(void){
+		gl_Position = uPMatrix * uCameraMatrix * uMVMatrix * vec4(a_position, 1.0);
+		texCoord = a_uv;
+		//color = vec4(uColor,1.0);
+	}
+</script>
+
+<script id="fragmentCircle" type="x-shader/x-fragment">#version 300 es
+	precision mediump float;
+	
+	uniform vec3 uColor;
+
+	in vec2 texCoord;
+	out vec4 outColor;
+	
+	void main(void){
+		vec4 color0 = vec4(0.0,1.0,0.0,0.0);
+		vec4 color1 = vec4(0.0,1.0,0.0,1.0);
+
+		vec2 delta = texCoord - vec2(0.5,0.5); //delta position from center;
+		float dist = 0.5 - sqrt(delta.x*delta.x + delta.y*delta.y);
+
+		float border = 0.01;
+		float a = 0.0;
+		if(dist > border) a = 1.0;
+		else if(dist > 0.0) a = dist / border;
+
+		outColor = vec4(uColor,a);//color;
+		//outColor = mix(color0,color1,a);
 	}
 </script>
 

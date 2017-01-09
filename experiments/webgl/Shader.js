@@ -68,6 +68,12 @@ class ShaderUtil{
 		var prog = gl.createProgram();
 		gl.attachShader(prog,vShader);
 		gl.attachShader(prog,fShader);
+
+		//Force predefined locations for specific attributes. If the attibute isn't used in the shader its location will default to -1
+		gl.bindAttribLocation(prog,0,"a_position");	gl.enableVertexAttribArray(0);
+		gl.bindAttribLocation(prog,1,"a_norm");		gl.enableVertexAttribArray(1);
+		gl.bindAttribLocation(prog,2,"a_uv");		gl.enableVertexAttribArray(2);
+
 		gl.linkProgram(prog);
 
 		//Check if successful
